@@ -2200,3 +2200,8 @@ RuntimeError: There is no current event loop in thread 'centinela-docker-events_
 2026-03-25T18:59:01 | [32mINFO    [0m | centinela.monitors.security_audit | Security audit found 2 finding(s) for container tuya_laravel_app.
 2026-03-25T18:59:01 | [32mINFO    [0m | centinela.monitors.security_audit | Security audit found 2 finding(s) for container tuya_postgres.
 2026-03-25T18:59:01 | [32mINFO    [0m | centinela.monitors.security_audit | Security audit found 2 finding(s) for container tuya_redis.
+2026-03-25T18:59:10 | [33mWARNING [0m | centinela.monitors.process_monitor | Suspicious process: container=tuya_postgres pid=684 user=70 pattern='nc' cmd='postgres: autovacuum launcher' project=tuya-postgres
+2026-03-25T18:59:10 | [33mWARNING [0m | centinela.monitors.process_monitor | Suspicious process: container=tuya_postgres pid=685 user=70 pattern='nc' cmd='postgres: logical replication launcher' project=tuya-postgres
+2026-03-25T18:59:18 | [32mINFO    [0m | centinela.monitors.security_audit | Security audit found 2 finding(s) for container tuya_laravel_app.
+2026-03-25T18:59:18 | [32mINFO    [0m | centinela.monitors.security_audit | Security audit found 2 finding(s) for container tuya_postgres.
+2026-03-25T18:59:18 | [32mINFO    [0m | centinela.monitors.security_audit | Security audit found 2 finding(s) for container tuya_redis.
