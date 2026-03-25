@@ -1,0 +1,212 @@
+# CENTINELA – Global Configuration
+# ================================
+# This file controls the behaviour of the Centinela security monitor.
+# Place it at /app/config/centinela.yml inside the container,
+# or override its path with the CENTINELA_CONFIG environment variable.
+
+# ---------------------------------------------------------------------------
+# Host filesystem mount point
+# ---------------------------------------------------------------------------
+# Centinela expects the host's root filesystem to be bind-mounted read-only
+# at this path so that inotify watchers and /proc inspection work correctly.
+host_root: /host
+
+# ---------------------------------------------------------------------------
+# Storage
+# ---------------------------------------------------------------------------
+storage:
+  # SQLite is the default. To use PostgreSQL, change the URL to:
+  #   postgresql+asyncpg://user:password@host:5432/centinela
+  db_url: "sqlite:////app/data/centinela.db"
+
+  # Directory where Centinela writes its own log files
+  log_dir: /app/logs
+
+  # Maximum size of a single log file before rotation (bytes). 10 MB default.
+  log_max_bytes: 10485760
+
+  # Number of rotated log files to keep per log stream
+  log_backup_count: 5
+
+# ---------------------------------------------------------------------------
+# SMTP (email alerts)
+# ---------------------------------------------------------------------------
+smtp:
+  host: smtp.gmail.com
+  port: 587
+  user: "centinela@yourdomain.com"
+  password: "your-app-password"
+  from: "CENTINELA <centinela@yourdomain.com>"
+  # STARTTLS (port 587). Set tls: true, ssl: false.
+  tls: true
+  ssl: false
+  # Connection timeout in seconds
+  timeout: 10
+  # Maximum number of retries on transient send failures
+  max_retries: 3
+
+# ---------------------------------------------------------------------------
+# Default alert targets
+# These are used when a project does not define its own alert block,
+# or as a fallback when project-level delivery fails.
+# ---------------------------------------------------------------------------
+default_alerts:
+  emails:
+    - admin@yourdomain.com
+  # Generic HTTP webhook (POST JSON payload). Leave empty string to disable.
+  webhook_url: "https://hooks.yourservice.com/centinela"
+  # Optional WhatsApp bridge webhook. Leave empty string to disable.
+  whatsapp_webhook: ""
+  # Minimum severity level to trigger an alert: low | medium | high | critical
+  min_severity: medium
+
+# ---------------------------------------------------------------------------
+# Monitoring intervals (seconds)
+# ---------------------------------------------------------------------------
+monitoring:
+  # How often NetworkMonitor samples container traffic counters
+  network_sample_interval: 300        # 5 minutes
+
+  # How often ProcessMonitor scans all tracked containers
+  process_check_interval: 60          # 1 minute
+
+  # How often SecurityAuditMonitor performs a full audit pass
+  security_audit_interval: 3600       # 1 hour
+
+  # How often the filesystem monitor re-checks file permissions
+  # (separate from the real-time inotify events)
+  fs_permission_check_interval: 1800  # 30 minutes
+
+# ---------------------------------------------------------------------------
+# Alert cooldown periods (seconds)
+# ---------------------------------------------------------------------------
+# Prevents alert floods by suppressing repeated alerts of the same type
+# for the same container within the cooldown window.
+# Keys match the incident_type values used in IncidentRepository.
+alert_cooldown:
+  DOCKER_EVENT_EXEC: 120
+  DOCKER_EVENT_RESTART: 300
+  DOCKER_EVENT_STOP: 60
+  PROCESS_SUSPICIOUS: 120
+  NETWORK_SPIKE: 300
+  NETWORK_NEW_DEST: 3600
+  FILESYSTEM_CHANGE: 600
+  FILESYSTEM_PHP_UPLOAD: 60
+  SECURITY_AUDIT: 86400
+  # Fallback for any incident type not listed above
+  default: 300
+
+# ---------------------------------------------------------------------------
+# Security audit rules (global defaults, can be overridden per project)
+# ---------------------------------------------------------------------------
+security_audit:
+  # Check for containers running as root (UID 0)
+  check_root_user: true
+
+  # Check for dangerous capabilities (SYS_ADMIN, NET_ADMIN, etc.)
+  check_capabilities: true
+  dangerous_capabilities:
+    - SYS_ADMIN
+    - NET_ADMIN
+    - SYS_PTRACE
+    - SYS_MODULE
+    - SYS_RAWIO
+    - DAC_READ_SEARCH
+    - SETUID
+    - SETGID
+
+  # Check for writable mounts that expose sensitive host paths
+  check_writable_mounts: true
+  sensitive_host_paths:
+    - /etc
+    - /root
+    - /home
+    - /var/lib
+    - /usr/bin
+    - /usr/sbin
+
+  # Check for exposed ports on dangerous ranges
+  check_exposed_ports: true
+  # Ports below this number trigger a warning if exposed to 0.0.0.0
+  sensitive_port_threshold: 1024
+
+  # Check image age (flag images older than N days with no update)
+  check_image_age: true
+  image_age_warning_days: 90
+
+# ---------------------------------------------------------------------------
+# Process monitoring – global suspicious process list
+# These are checked across ALL projects. Projects may add their own extras.
+# ---------------------------------------------------------------------------
+suspicious_processes:
+  # Shells spawned inside web containers are almost always malicious
+  - /bin/bash
+  - /bin/sh
+  - /bin/dash
+  - /bin/zsh
+  - ash
+  - sh
+  - bash
+  # Reverse-shell tools
+  - nc
+  - ncat
+  - netcat
+  - nmap
+  - socat
+  # Privilege escalation / reconnaissance
+  - curl
+  - wget
+  - python
+  - python3
+  - perl
+  - ruby
+  - php
+  # Crypto miners
+  - xmrig
+  - minerd
+  - cpuminer
+  # Package managers (should not run inside prod containers)
+  - apt
+  - apt-get
+  - yum
+  - apk
+  - pip
+  - npm
+
+# ---------------------------------------------------------------------------
+# Network monitoring – global defaults
+# ---------------------------------------------------------------------------
+network:
+  # Default traffic thresholds (bytes/minute). Projects override these.
+  bytes_per_minute_warning: 52428800    # 50 MB/min
+  bytes_per_minute_critical: 209715200  # 200 MB/min
+  # Raise alert if current rate exceeds N × historical baseline
+  spike_multiplier: 5.0
+  # Alert on connections to destinations not seen during the learning period
+  new_destination_alert: true
+  # How long to silently learn normal destinations before alerting (hours)
+  learning_period_hours: 48
+
+# ---------------------------------------------------------------------------
+# Filesystem monitoring – global defaults
+# ---------------------------------------------------------------------------
+filesystem:
+  # File extensions that should never appear in uploads directories
+  dangerous_extensions:
+    - .php
+    - .php3
+    - .php4
+    - .php5
+    - .phtml
+    - .phar
+    - .sh
+    - .bash
+    - .py
+    - .rb
+    - .pl
+    - .cgi
+    - .htaccess
+
+  # Minimum permissions considered "too open" on sensitive files (octal)
+  # Files world-writable (0o002 bit set) trigger a warning.
+  world_writable_alert: true

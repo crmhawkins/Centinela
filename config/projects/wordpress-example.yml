@@ -1,0 +1,154 @@
+# CENTINELA – WordPress Project Configuration
+# ============================================
+# Copy this file to config/projects/<your-project>.yml and customise it.
+# Centinela auto-discovers all *.yml files inside config/projects/.
+
+# ---------------------------------------------------------------------------
+# Identity
+# ---------------------------------------------------------------------------
+# Human-readable project name (used in alert subjects and log messages)
+name: "mi-wordpress-tienda"
+
+# Application type. Built-in types: wordpress | laravel | generic
+# The type drives which default critical_paths and process rules are applied.
+type: wordpress
+
+# ---------------------------------------------------------------------------
+# Container matching (choose ONE of the three strategies below)
+# ---------------------------------------------------------------------------
+
+# Strategy 1 – exact container name (most common for docker-compose setups)
+container_name: "wordpress-tienda"
+
+# Strategy 2 – match by Docker label (recommended for Coolify deployments)
+# Coolify adds labels like "coolify.name", "coolify.appId", "com.docker.compose.service"
+# container_label: "coolify.name=mi-tienda"
+
+# Strategy 3 – match containers whose name starts with a given prefix
+# Useful when Coolify generates randomised suffixes.
+# container_name_prefix: "tienda-wp-"
+
+# ---------------------------------------------------------------------------
+# Application layout inside the container
+# ---------------------------------------------------------------------------
+# Absolute path to the application root inside the container.
+# Centinela constructs watch paths relative to this directory.
+app_root: /var/www/html
+
+# ---------------------------------------------------------------------------
+# Critical paths
+# ---------------------------------------------------------------------------
+# Paths (relative to app_root) that trigger HIGH-severity alerts on any change.
+# For WordPress, Centinela automatically includes standard WordPress paths;
+# list here only the extras specific to this deployment.
+critical_paths:
+  - wp-config.php
+  - .htaccess
+  - index.php
+  - wp-login.php
+  - xmlrpc.php
+  - wp-content/uploads       # Watch for PHP webshells uploaded here
+  - wp-content/plugins       # Plugin additions/modifications
+  - wp-content/themes        # Theme modifications
+  - wp-includes/version.php  # Core version fingerprint
+
+# Paths to ignore completely (no events generated, no alerts)
+exclude_paths:
+  - wp-content/cache
+  - wp-content/uploads/woocommerce_uploads
+  - wp-content/uploads/backwpup-*
+  - wp-content/debug.log     # High-churn log file
+
+# ---------------------------------------------------------------------------
+# Alert routing
+# ---------------------------------------------------------------------------
+alerts:
+  # Addresses that receive email alerts for this project
+  emails:
+    - dev@miempresa.com
+    - seguridad@miempresa.com
+
+  # Slack / generic HTTP webhook. POST body is a JSON IncidentPayload.
+  # Leave empty string "" to disable.
+  webhook_url: "https://hooks.slack.com/services/XXX/YYY/ZZZ"
+
+  # Optional WhatsApp bridge (e.g. WA-Bridge / Twilio)
+  whatsapp_webhook: "https://mi-bridge.com/whatsapp"
+
+  # Minimum severity to trigger an alert for this project:
+  # low | medium | high | critical
+  min_severity: medium
+
+# ---------------------------------------------------------------------------
+# Deployment windows
+# ---------------------------------------------------------------------------
+# During these windows Centinela suppresses filesystem-change alerts to avoid
+# noise during legitimate deployments. Docker event alerts are NOT suppressed.
+deployment_windows:
+  - start: "02:00"
+    end: "05:00"
+    days:
+      - tuesday
+      - thursday
+  # Example: allow Sunday morning maintenance window
+  # - start: "04:00"
+  #   end: "07:00"
+  #   days:
+  #     - sunday
+
+# ---------------------------------------------------------------------------
+# Network thresholds
+# ---------------------------------------------------------------------------
+network:
+  # Traffic above this rate triggers a WARNING alert (bytes/minute)
+  bytes_per_minute_warning:  52428800    # 50 MB/min
+
+  # Traffic above this rate triggers a CRITICAL alert (bytes/minute)
+  bytes_per_minute_critical: 209715200   # 200 MB/min
+
+  # Alert if current rate is more than N times the rolling baseline
+  spike_multiplier: 5.0
+
+  # Alert on new outbound destinations after the learning period
+  new_destination_alert: true
+
+  # Silent learning period before new-destination alerts fire (hours)
+  learning_period_hours: 72
+
+# ---------------------------------------------------------------------------
+# Extra suspicious processes (in addition to the global list)
+# ---------------------------------------------------------------------------
+extra_suspicious_processes:
+  - wpscan        # WordPress vulnerability scanner
+  - sqlmap        # SQL injection tool
+  - wp            # WP-CLI (should not run inside the container in production)
+  - mysqldump     # Database dump – could indicate data exfiltration
+
+# ---------------------------------------------------------------------------
+# Feature switches
+# ---------------------------------------------------------------------------
+monitor_filesystem: true
+monitor_processes: true
+monitor_network: true
+monitor_docker_events: true
+
+# Set to false to completely disable monitoring for this project
+# without removing the config file.
+enabled: true
+
+# ---------------------------------------------------------------------------
+# WordPress-specific rules
+# ---------------------------------------------------------------------------
+wordpress:
+  # Alert if a new PHP file appears anywhere inside uploads/
+  alert_on_php_in_uploads: true
+
+  # Alert on any modification to wp-config.php
+  alert_on_wpconfig_change: true
+
+  # Alert if xmlrpc.php is accessed more than N times per minute
+  # (brute-force / DDoS indicator). Requires access log parsing.
+  xmlrpc_requests_per_minute_threshold: 20
+
+  # Track WooCommerce order volume anomalies (future feature)
+  monitor_woocommerce: false

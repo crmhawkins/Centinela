@@ -1,0 +1,144 @@
+# CENTINELA – Laravel Project Configuration
+# ==========================================
+# Copy this file to config/projects/<your-project>.yml and customise it.
+# Centinela auto-discovers all *.yml files inside config/projects/.
+
+# ---------------------------------------------------------------------------
+# Identity
+# ---------------------------------------------------------------------------
+name: "mi-laravel-api"
+
+# Application type. Built-in types: wordpress | laravel | generic
+type: laravel
+
+# ---------------------------------------------------------------------------
+# Container matching
+# ---------------------------------------------------------------------------
+
+# Strategy 1 – exact container name
+container_name: "laravel-api"
+
+# Strategy 2 – Coolify label matching
+# container_label: "coolify.name=mi-laravel-api"
+
+# Strategy 3 – name prefix matching
+# container_name_prefix: "laravel-api-"
+
+# ---------------------------------------------------------------------------
+# Application layout
+# ---------------------------------------------------------------------------
+app_root: /var/www/html
+
+# ---------------------------------------------------------------------------
+# Critical paths
+# ---------------------------------------------------------------------------
+# Relative to app_root. Centinela adds standard Laravel paths automatically.
+critical_paths:
+  - .env                     # Database creds, app key, OAuth secrets
+  - .env.production
+  - bootstrap/cache          # Compiled config and routes cache
+  - storage                  # Logs, compiled views, uploaded files
+  - storage/logs             # Application log files
+  - config                   # All config files
+  - public/index.php         # Application entry point
+  - artisan                  # CLI entry point
+  - composer.json            # Dependency manifest
+  - composer.lock            # Pinned dependency hashes
+
+exclude_paths:
+  - storage/framework/cache      # High-churn framework cache
+  - storage/framework/sessions   # Session files
+  - storage/framework/views      # Compiled Blade templates (regenerated often)
+  - storage/logs/laravel.log     # Exclude the main log to avoid recursive alerts
+  - bootstrap/cache/config.php   # Regenerated on every php artisan config:cache
+
+# ---------------------------------------------------------------------------
+# Alert routing
+# ---------------------------------------------------------------------------
+alerts:
+  emails:
+    - backend@miempresa.com
+    - devops@miempresa.com
+  webhook_url: "https://hooks.slack.com/services/AAA/BBB/CCC"
+  whatsapp_webhook: ""
+  min_severity: medium
+
+# ---------------------------------------------------------------------------
+# Deployment windows
+# ---------------------------------------------------------------------------
+# Suppress filesystem-change alerts during CI/CD deployments.
+deployment_windows:
+  - start: "03:00"
+    end: "06:00"
+    days:
+      - monday
+      - wednesday
+      - friday
+  # Emergency weekend deployment window (uncomment if needed)
+  # - start: "06:00"
+  #   end: "08:00"
+  #   days:
+  #     - saturday
+  #     - sunday
+
+# ---------------------------------------------------------------------------
+# Network thresholds
+# ---------------------------------------------------------------------------
+network:
+  bytes_per_minute_warning:  104857600   # 100 MB/min
+  bytes_per_minute_critical: 524288000   # 500 MB/min
+  spike_multiplier: 4.0
+  new_destination_alert: true
+  learning_period_hours: 48
+
+# ---------------------------------------------------------------------------
+# Extra suspicious processes
+# ---------------------------------------------------------------------------
+extra_suspicious_processes:
+  - artisan          # Should not run as a long-running background process
+  - php-cs-fixer     # Development tool – shouldn't be in production
+  - phpunit          # Test runner – shouldn't be in production
+  - composer         # Dependency management – dangerous if triggered remotely
+
+# ---------------------------------------------------------------------------
+# Feature switches
+# ---------------------------------------------------------------------------
+monitor_filesystem: true
+monitor_processes: true
+monitor_network: true
+monitor_docker_events: true
+enabled: true
+
+# ---------------------------------------------------------------------------
+# Laravel-specific rules
+# ---------------------------------------------------------------------------
+laravel:
+  # Alert if .env is readable by other users (world-readable is dangerous)
+  alert_on_env_world_readable: true
+
+  # Alert if the APP_DEBUG=true is detected in the environment
+  # (exposes stack traces and config in browser error pages)
+  alert_on_debug_mode: true
+
+  # Alert if any file appears in public/ that looks like a webshell
+  alert_on_webshell_in_public: true
+
+  # Alert on suspicious artisan commands executed via docker exec
+  suspicious_artisan_commands:
+    - "tinker"         # Interactive REPL – could be used for RCE
+    - "route:list"     # Maps attack surface
+    - "config:show"    # Dumps all config including secrets
+
+  # Alert if storage/ permissions are too permissive (world-writable)
+  check_storage_permissions: true
+
+  # Laravel queue workers dying and restarting repeatedly indicate config issues
+  # or an attacker flooding the queue. Alert if restart count exceeds this
+  # threshold within the check window.
+  queue_worker_restart_threshold: 5
+
+  # Monitor Laravel log for specific patterns (future feature)
+  log_patterns:
+    - "Illuminate\\Encryption\\MissingAppKeyException"
+    - "SQLSTATE\\[HY000\\]"
+    - "failed to open stream: Permission denied"

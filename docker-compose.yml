@@ -1,0 +1,123 @@
+version: "3.9"
+
+# ---------------------------------------------------------------------------
+# CENTINELA – Docker Compose deployment
+# ---------------------------------------------------------------------------
+# Usage:
+#   docker compose up -d          # Start in background
+#   docker compose logs -f        # Follow logs
+#   docker compose down           # Stop (data is preserved in ./data)
+#   docker compose pull && docker compose up -d   # Upgrade
+# ---------------------------------------------------------------------------
+
+services:
+  centinela:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: centinela:latest
+    container_name: centinela
+    restart: unless-stopped
+
+    # -----------------------------------------------------------------------
+    # Privileges
+    # -----------------------------------------------------------------------
+    # privileged: true is required so that Centinela can:
+    #   - Use inotify on bind-mounted host paths (/host/...)
+    #   - Read /proc/<pid>/... of processes inside monitored containers
+    # If you prefer not to run privileged, see README.md for the
+    # capability-based alternative (CAP_SYS_PTRACE + CAP_NET_ADMIN).
+    privileged: true
+
+    # -----------------------------------------------------------------------
+    # Volumes
+    # -----------------------------------------------------------------------
+    volumes:
+      # Docker socket (read-only) – needed to listen for Docker events
+      # and inspect container metadata. Never expose this writable.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+      # Host filesystem (read-only) – required for inotify watchers on
+      # container volumes and for /proc access.
+      # Centinela accesses host paths via /host/...
+      - /:/host:ro
+
+      # Persistent data: SQLite database
+      - ./data:/app/data
+
+      # Persistent data: Centinela's own log files
+      - ./logs:/app/logs
+
+      # Configuration: centinela.yml + projects/*.yml
+      # Read-only so a compromised Centinela cannot modify its own rules.
+      - ./config:/app/config:ro
+
+    # -----------------------------------------------------------------------
+    # Environment
+    # -----------------------------------------------------------------------
+    environment:
+      - CENTINELA_CONFIG=/app/config/centinela.yml
+      - TZ=Europe/Madrid
+      # Uncomment to increase log verbosity during development:
+      # - CENTINELA_LOG_LEVEL=DEBUG
+
+    # -----------------------------------------------------------------------
+    # Resource limits
+    # -----------------------------------------------------------------------
+    # Centinela is designed to be lightweight. These limits protect the host
+    # from runaway resource consumption if a bug causes a loop.
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.1"
+          memory: 64M
+
+    # -----------------------------------------------------------------------
+    # Log management
+    # -----------------------------------------------------------------------
+    # Container stdout/stderr goes here. Centinela also writes structured
+    # logs to /app/logs via its own logging_manager.
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # -----------------------------------------------------------------------
+    # Healthcheck
+    # -----------------------------------------------------------------------
+    healthcheck:
+      test: ["CMD", "python", "-c", "import docker; docker.from_env().ping()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+    # -----------------------------------------------------------------------
+    # Security options
+    # -----------------------------------------------------------------------
+    # Even with privileged: true, apply a read-only root filesystem where
+    # possible and drop all capabilities we don't need.
+    # Note: if you switch from privileged to capability-based mode, add:
+    #   cap_add:
+    #     - SYS_PTRACE
+    #     - NET_ADMIN
+    #     - DAC_READ_SEARCH
+    #   cap_drop:
+    #     - ALL
+    security_opt:
+      - no-new-privileges:true
+
+# ---------------------------------------------------------------------------
+# Networks
+# ---------------------------------------------------------------------------
+networks:
+  default:
+    name: centinela-network
+    # Use an external network to give Centinela access to monitored containers'
+    # networks for traffic inspection. If your containers use a different
+    # network, add it here:
+    # external: true
