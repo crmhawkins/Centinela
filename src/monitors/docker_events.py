@@ -49,6 +49,14 @@ _BACKOFF_FACTOR = 2.0
 _RESTART_BURST_COUNT = 3
 _RESTART_BURST_WINDOW = 300  # seconds
 
+# Exec commands issued by Centinela itself (filesystem permission checks).
+# These must be ignored to prevent self-detection feedback loops.
+_CENTINELA_OWN_EXEC_PREFIXES = (
+    "stat -c ",   # filesystem_monitor permission checks
+    "ps aux",     # process_monitor top fallback
+    "ps -aux",
+)
+
 
 class DockerEventMonitor:
     """
@@ -103,6 +111,31 @@ class DockerEventMonitor:
         # Internal sentinel: set to True to stop the run() loop gracefully
         self._stop_event = asyncio.Event()
 
+        # Event loop reference captured in run() and used by _stream_events() thread
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
+
+        # Cross-monitor callbacks (async coroutine functions)
+        # Registered via register_*_callback() from main.py
+        self._exec_callbacks: list = []    # called with (container_name: str)
+        self._start_callbacks: list = []   # called with (container_name, container_id, project)
+        self._stop_callbacks: list = []    # called with (container_name: str)
+
+    # ------------------------------------------------------------------
+    # Callback registration (called from main.py after instantiation)
+    # ------------------------------------------------------------------
+
+    def register_exec_callback(self, coro_func) -> None:
+        """Register an async callback fired on every exec_start event."""
+        self._exec_callbacks.append(coro_func)
+
+    def register_start_callback(self, coro_func) -> None:
+        """Register an async callback fired on every container start event."""
+        self._start_callbacks.append(coro_func)
+
+    def register_stop_callback(self, coro_func) -> None:
+        """Register an async callback fired on every container die/stop event."""
+        self._stop_callbacks.append(coro_func)
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
@@ -119,6 +152,7 @@ class DockerEventMonitor:
         """
         backoff = _BACKOFF_INITIAL
         loop = asyncio.get_event_loop()
+        self._loop = loop  # store for use in _stream_events() thread
 
         logger.info("DockerEventMonitor starting.")
 
@@ -191,7 +225,7 @@ class DockerEventMonitor:
         On any error this method pushes a ``None`` sentinel to signal
         the async consumer that the stream has ended, then returns.
         """
-        loop = asyncio.get_event_loop()
+        loop = self._loop  # captured from run() in the async thread
 
         def put(item: Optional[Dict[str, Any]]) -> None:
             """Thread-safe enqueue to the asyncio queue."""
@@ -387,6 +421,15 @@ class DockerEventMonitor:
         if not cmd:
             cmd = "<unknown>"
 
+        # Skip exec commands issued by Centinela itself (e.g. stat for FS checks)
+        for own_prefix in _CENTINELA_OWN_EXEC_PREFIXES:
+            if cmd.startswith(own_prefix):
+                logger.debug(
+                    "Ignoring Centinela own exec: container=%s cmd=%r",
+                    container_name, cmd,
+                )
+                return
+
         logger.warning(
             "DOCKER EXEC detected: container=%s exec_id=%s cmd=%r project=%s",
             container_name, exec_id[:12] if exec_id else "?",
@@ -417,6 +460,10 @@ class DockerEventMonitor:
             evidence=evidence,
             dedup_extra=exec_id[:12] if exec_id else cmd[:30],
         )
+
+        # Fire exec callbacks (e.g. trigger immediate process scan)
+        for cb in self._exec_callbacks:
+            asyncio.ensure_future(cb(container_name))
 
     async def _handle_die(
         self,
@@ -467,6 +514,10 @@ class DockerEventMonitor:
             evidence=evidence,
             dedup_extra=str(exit_code),
         )
+
+        # Fire stop callbacks (e.g. remove filesystem watchers)
+        for cb in self._stop_callbacks:
+            asyncio.ensure_future(cb(container_name))
 
     async def _handle_oom(
         self,
@@ -578,6 +629,9 @@ class DockerEventMonitor:
                 "Container started: name=%s image=%s project=%s",
                 container_name, image, project.name,
             )
+            # Fire start callbacks for known projects (FS watcher + security audit)
+            for cb in self._start_callbacks:
+                asyncio.ensure_future(cb(container_name, container_id, project))
             return  # Known project – no alert needed
 
         # Unknown container: check if the image is suspicious

@@ -7,7 +7,10 @@ method is synchronous (thread-safe SQLAlchemy sessions).
 """
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 from typing import List, Optional
 
 from sqlalchemy import delete, func, select, update
@@ -85,7 +88,7 @@ class IncidentRepository:
 
     def recent_incident_exists(self, dedup_key: str, since_seconds: int) -> bool:
         """Return True if an incident with this dedup_key was created recently."""
-        cutoff = datetime.utcnow() - timedelta(seconds=since_seconds)
+        cutoff = _utcnow() - timedelta(seconds=since_seconds)
         with self._Session() as session:
             count = session.scalar(
                 select(func.count(Incident.id))
@@ -110,7 +113,7 @@ class IncidentRepository:
                 .where(NetworkBaseline.destination == destination)
             )
             if existing:
-                existing.last_seen = datetime.utcnow()
+                existing.last_seen = _utcnow()
                 existing.hit_count += 1
                 session.commit()
                 return False
@@ -118,8 +121,8 @@ class IncidentRepository:
                 session.add(NetworkBaseline(
                     container_name=container_name,
                     destination=destination,
-                    first_seen=datetime.utcnow(),
-                    last_seen=datetime.utcnow(),
+                    first_seen=_utcnow(),
+                    last_seen=_utcnow(),
                     hit_count=1,
                 ))
                 session.commit()
@@ -134,7 +137,7 @@ class IncidentRepository:
             )
             if not first:
                 return 0.0
-            delta = datetime.utcnow() - first
+            delta = _utcnow() - first
             return delta.total_seconds() / 3600
 
     # ------------------------------------------------------------------
@@ -152,7 +155,7 @@ class IncidentRepository:
         Return avg bytes_rx and bytes_tx per sample interval
         for the last window_hours.
         """
-        cutoff = datetime.utcnow() - timedelta(hours=window_hours)
+        cutoff = _utcnow() - timedelta(hours=window_hours)
         with self._Session() as session:
             rows = session.execute(
                 select(
@@ -171,7 +174,7 @@ class IncidentRepository:
 
     def prune_network_samples(self, older_than_hours: int = 336) -> int:
         """Delete samples older than N hours (default 14 days). Returns deleted count."""
-        cutoff = datetime.utcnow() - timedelta(hours=older_than_hours)
+        cutoff = _utcnow() - timedelta(hours=older_than_hours)
         with self._Session() as session:
             result = session.execute(
                 delete(NetworkSample).where(NetworkSample.timestamp < cutoff)
@@ -204,7 +207,7 @@ class IncidentRepository:
                 existing.size_bytes = size_bytes
                 existing.permissions = permissions
                 existing.owner = owner
-                existing.last_checked = datetime.utcnow()
+                existing.last_checked = _utcnow()
                 session.commit()
                 return changed
             else:
@@ -216,7 +219,7 @@ class IncidentRepository:
                     size_bytes=size_bytes,
                     permissions=permissions,
                     owner=owner,
-                    last_checked=datetime.utcnow(),
+                    last_checked=_utcnow(),
                 ))
                 session.commit()
                 return False  # first time seen is not an alert

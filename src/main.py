@@ -33,7 +33,6 @@ async def startup_audit(
     fs_monitor: FilesystemMonitor,
     docker_client,
     registry: ProjectRegistry,
-    alert_manager: AlertManager,
 ) -> None:
     """
     Run a security audit and set up filesystem watchers for all containers
@@ -46,9 +45,12 @@ async def startup_audit(
         logger.error("Failed to list running containers during startup audit: %s", exc)
         return
 
+    loop = asyncio.get_event_loop()
+
     for container in running_containers:
         container_name = container.name
-        project = registry.find_project(container)
+        # BUG FIX: was registry.find_project(container) – correct method is get()
+        project = registry.get(container_name, container.labels or {})
 
         if project is None:
             logger.debug(
@@ -64,7 +66,8 @@ async def startup_audit(
                 container_name,
                 project.name,
             )
-            await security_monitor.audit_container(container, project)
+            # BUG FIX: was audit_container(container, project) – correct signature is (name, id, project)
+            await security_monitor.audit_container(container.name, container.id, project)
         except Exception as exc:
             logger.error(
                 "Startup audit failed for container %s: %s", container_name, exc
@@ -77,7 +80,15 @@ async def startup_audit(
                 container_name,
                 project.name,
             )
-            await fs_monitor.add_watcher(container, project)
+            # BUG FIX: was await fs_monitor.add_watcher(container, project)
+            # Correct method is add_container_watcher(name, id, project) – synchronous, run in executor
+            await loop.run_in_executor(
+                None,
+                fs_monitor.add_container_watcher,
+                container.name,
+                container.id,
+                project,
+            )
         except Exception as exc:
             logger.error(
                 "Failed to register filesystem watcher for container %s: %s",
@@ -86,25 +97,6 @@ async def startup_audit(
             )
 
     logger.info("Startup audit complete (%d containers inspected).", len(running_containers))
-
-
-def _build_shutdown_handler(tasks, executor, loop):
-    """Return a signal handler that cancels all running tasks gracefully."""
-
-    def _handler(signum, frame):
-        sig_name = signal.Signals(signum).name
-        logger.info("Received %s – initiating graceful shutdown...", sig_name)
-
-        for task in tasks:
-            task.cancel()
-
-        # Ask the executor to stop accepting new work
-        executor.shutdown(wait=False)
-
-        # Stop the loop after tasks are cancelled
-        loop.call_soon_threadsafe(loop.stop)
-
-    return _handler
 
 
 async def main() -> None:
@@ -118,7 +110,8 @@ async def main() -> None:
     # ------------------------------------------------------------------ #
     # 2. Setup logging
     # ------------------------------------------------------------------ #
-    setup_logging(config)
+    # BUG FIX: was setup_logging(config) – setup_logging expects a str (log_dir), not GlobalConfig
+    setup_logging(config.log_dir)
     logger.info("CENTINELA starting up – logging initialised.")
 
     # ------------------------------------------------------------------ #
@@ -135,91 +128,132 @@ async def main() -> None:
     # ------------------------------------------------------------------ #
     # 4. Core infrastructure
     # ------------------------------------------------------------------ #
-    repository = IncidentRepository(config)
-    await repository.initialise()
+    # BUG FIX: was IncidentRepository(config) – expects db_url:str, not GlobalConfig
+    repository = IncidentRepository(config.db_url)
+    # BUG FIX: await repository.initialise() removed – DB is created in __init__, no async init needed
     logger.info("Incident repository initialised.")
 
-    alert_manager = AlertManager(config)
+    # BUG FIX: was AlertManager(config) – constructor requires (config, repo)
+    alert_manager = AlertManager(config, repository)
     logger.info("Alert manager initialised.")
 
-    registry = ProjectRegistry(config)
-    await registry.load()
+    # BUG FIX: was ProjectRegistry(config) – constructor expects projects:list, not GlobalConfig
+    # BUG FIX: await registry.load() removed – ProjectRegistry has no load() method; sync build
+    registry = ProjectRegistry(config.projects)
     logger.info(
-        "Project registry loaded – %d project(s) tracked.", registry.project_count()
+        "Project registry loaded – %d project(s) tracked.",
+        # BUG FIX: was registry.project_count() – no such method; use len(all_projects())
+        len(registry.all_projects()),
     )
 
     # ------------------------------------------------------------------ #
     # 5. Instantiate all monitors
     # ------------------------------------------------------------------ #
+    # BUG FIX: DockerEventMonitor.__init__ signature is (config, registry, alert_manager, executor=None)
+    # It does NOT accept docker_client or repository – removed those kwargs
     docker_event_monitor = DockerEventMonitor(
-        docker_client=docker_client,
         config=config,
         registry=registry,
-        repository=repository,
         alert_manager=alert_manager,
     )
 
+    # BUG FIX: ProcessMonitor.__init__ signature is (config, registry, alert_manager, docker_client)
+    # It does NOT accept repository – removed that kwarg
     process_monitor = ProcessMonitor(
-        docker_client=docker_client,
         config=config,
         registry=registry,
-        repository=repository,
         alert_manager=alert_manager,
+        docker_client=docker_client,
     )
 
     network_monitor = NetworkMonitor(
-        docker_client=docker_client,
         config=config,
         registry=registry,
-        repository=repository,
         alert_manager=alert_manager,
+        repo=repository,
+        docker_client=docker_client,
     )
 
     fs_monitor = FilesystemMonitor(
-        docker_client=docker_client,
         config=config,
         registry=registry,
-        repository=repository,
         alert_manager=alert_manager,
+        repo=repository,
+        docker_client=docker_client,
     )
 
+    # BUG FIX: SecurityAuditMonitor.__init__ signature is (config, registry, alert_manager, docker_client)
+    # It does NOT accept repository – removed that kwarg
     security_monitor = SecurityAuditMonitor(
-        docker_client=docker_client,
         config=config,
         registry=registry,
-        repository=repository,
         alert_manager=alert_manager,
+        docker_client=docker_client,
     )
 
     # ------------------------------------------------------------------ #
     # 6. Wire monitors together via DockerEventMonitor callbacks
     # ------------------------------------------------------------------ #
+    # BUG FIX: register_exec_callback / register_start_callback / register_stop_callback
+    # did not exist in DockerEventMonitor – they have been added to docker_events.py.
+    # Callback names and signatures have also been corrected:
+    #   - process_monitor.on_exec_event  → process_monitor.trigger_immediate_check(name)
+    #   - fs_monitor.add_watcher         → fs_monitor.add_container_watcher(name, id, project)  [sync]
+    #   - fs_monitor.remove_watcher      → fs_monitor.remove_container_watcher(name)              [sync]
+    #   - security_monitor.on_container_start → security_monitor.audit_container(name, id, project)
 
-    # exec events  → immediate process check
-    docker_event_monitor.register_exec_callback(process_monitor.on_exec_event)
+    # exec_start → trigger immediate process scan (ProcessMonitor has trigger_immediate_check)
+    docker_event_monitor.register_exec_callback(
+        process_monitor.trigger_immediate_check   # async (container_name: str)
+    )
 
-    # container start/stop/die → add/remove filesystem watchers dynamically
-    docker_event_monitor.register_start_callback(fs_monitor.add_watcher)
-    docker_event_monitor.register_stop_callback(fs_monitor.remove_watcher)
+    # container start → add FS watcher + run security audit
+    async def _on_container_start(container_name: str, container_id: str, project) -> None:
+        if project is None:
+            return
+        loop = asyncio.get_event_loop()
+        # add_container_watcher is synchronous (thread-safe) → run in executor
+        await loop.run_in_executor(
+            None,
+            fs_monitor.add_container_watcher,
+            container_name,
+            container_id,
+            project,
+        )
+        await security_monitor.audit_container(container_name, container_id, project)
 
-    # container start → run security audit on the newly started container
-    docker_event_monitor.register_start_callback(security_monitor.on_container_start)
+    docker_event_monitor.register_start_callback(_on_container_start)
+
+    # container stop/die → remove FS watcher
+    async def _on_container_stop(container_name: str) -> None:
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(
+            None,
+            fs_monitor.remove_container_watcher,
+            container_name,
+        )
+
+    docker_event_monitor.register_stop_callback(_on_container_stop)
 
     logger.info("Monitor cross-wiring complete.")
 
     # ------------------------------------------------------------------ #
-    # 7. Startup audit on already-running containers
+    # 7. Start filesystem observer early so startup audit can register watchers
+    # ------------------------------------------------------------------ #
+    fs_monitor.start_observer()
+
+    # ------------------------------------------------------------------ #
+    # 8. Startup audit on already-running containers
     # ------------------------------------------------------------------ #
     await startup_audit(
         security_monitor=security_monitor,
         fs_monitor=fs_monitor,
         docker_client=docker_client,
         registry=registry,
-        alert_manager=alert_manager,
     )
 
     # ------------------------------------------------------------------ #
-    # 8. Build async tasks and run concurrently
+    # 9. Build async tasks and run concurrently
     # ------------------------------------------------------------------ #
     loop = asyncio.get_running_loop()
     executor = ThreadPoolExecutor(max_workers=8, thread_name_prefix="centinela")
@@ -247,7 +281,7 @@ async def main() -> None:
 
     logger.info(
         "All monitors started. CENTINELA is watching %d project(s).",
-        registry.project_count(),
+        len(registry.all_projects()),
     )
 
     # ------------------------------------------------------------------ #
@@ -266,10 +300,7 @@ async def main() -> None:
         logger.info("Main gather cancelled – shutting down.")
     finally:
         logger.info("Cleaning up resources...")
-        try:
-            await repository.close()
-        except Exception as exc:
-            logger.warning("Repository close error: %s", exc)
+        # BUG FIX: await repository.close() removed – IncidentRepository has no close() method
         try:
             docker_client.close()
         except Exception as exc:

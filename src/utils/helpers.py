@@ -7,7 +7,7 @@ import logging
 import os
 import socket
 import struct
-from datetime import datetime, time
+from datetime import datetime, time, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -19,7 +19,7 @@ logger = logging.getLogger("centinela.utils")
 # ---------------------------------------------------------------------------
 
 def now_utc() -> datetime:
-    return datetime.utcnow()
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 def in_deployment_window(windows: list) -> bool:
@@ -194,6 +194,21 @@ def parse_docker_top(output: str) -> list:
     return processes
 
 
+def _cmd_matches_pattern(cmd_lower: str, cmd_base: str, pattern: str) -> bool:
+    """
+    Return True if cmd matches the pattern using word-boundary checks.
+    Avoids false positives like 'nc' matching 'launcher'.
+    """
+    import re
+    p = pattern.lower()
+    # Exact base-name match is always safe
+    if cmd_base == p:
+        return True
+    # Substring match only when surrounded by word boundaries
+    # (space, slash, start, end, or common delimiters)
+    return bool(re.search(r'(?<![a-z0-9_])' + re.escape(p) + r'(?![a-z0-9_])', cmd_lower))
+
+
 def is_suspicious_process(cmd: str, always_list: list,
                            context_list: list, extra: list = None) -> tuple:
     """
@@ -205,7 +220,7 @@ def is_suspicious_process(cmd: str, always_list: list,
 
     # Always suspicious regardless of context
     for pattern in (always_list + (extra or [])):
-        if pattern.lower() in cmd_lower or cmd_base == pattern.lower():
+        if _cmd_matches_pattern(cmd_lower, cmd_base, pattern):
             return True, "high", pattern
 
     # Context-suspicious (medium severity)

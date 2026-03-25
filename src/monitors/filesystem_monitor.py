@@ -173,17 +173,36 @@ class FilesystemMonitor:
         self._watches_lock = threading.Lock()
 
     # ------------------------------------------------------------------
+    # Early observer start (called from main.py before startup audit)
+    # ------------------------------------------------------------------
+
+    def start_observer(self) -> None:
+        """
+        Start the watchdog Observer early so that add_container_watcher()
+        calls during the startup audit succeed.
+        Safe to call multiple times — idempotent.
+        """
+        if self._observer is None:
+            self._observer = Observer()
+            self._observer.start()
+            logger.info("Filesystem watchdog Observer started (early).")
+
+    # ------------------------------------------------------------------
     # Main entry point
     # ------------------------------------------------------------------
 
     async def run(self) -> None:
         """
-        Starts the watchdog Observer, sets up initial watchers, and runs
-        the async event-dispatch + periodic-hash-check loops concurrently.
+        Starts the watchdog Observer (if not already started), sets up
+        initial watchers, and runs the async event-dispatch +
+        periodic-hash-check loops concurrently.
         """
-        self._observer = Observer()
-        self._observer.start()
-        logger.info("Filesystem watchdog Observer started.")
+        if self._observer is None:
+            self._observer = Observer()
+            self._observer.start()
+            logger.info("Filesystem watchdog Observer started.")
+        else:
+            logger.info("Filesystem watchdog Observer already running.")
 
         # Initial watcher setup for already-running containers.
         await asyncio.get_event_loop().run_in_executor(None, self._setup_watchers)

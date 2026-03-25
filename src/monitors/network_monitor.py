@@ -15,7 +15,10 @@ Two main loops (both run on the same configurable interval):
 import asyncio
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 from typing import Dict, List, Optional, Tuple
 
 import docker
@@ -215,7 +218,7 @@ class NetworkMonitor:
             total_packets_rx += int(iface_stats.get("rx_packets", 0))
             total_packets_tx += int(iface_stats.get("tx_packets", 0))
 
-        now = datetime.utcnow()
+        now = _utcnow()
 
         # If we have a previous sample, compute deltas; otherwise bootstrap.
         prev = self._last_stats.get(container_name)

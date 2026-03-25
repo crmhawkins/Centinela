@@ -1,0 +1,44 @@
+smtp:
+  host: localhost
+  port: 25
+
+storage:
+  db_url: "sqlite:///D:/proyectos/programasivan/Centinela/Centinela/data/centinela_test.db"
+  log_dir: "D:/proyectos/programasivan/Centinela/Centinela/logs"
+
+host_root: ""   # en Windows directo, sin /host prefix
+
+monitoring:
+  network_sample_interval: 15
+  process_check_interval: 10
+  security_audit_interval: 30
+  fs_permission_check_interval: 60
+
+default_alerts:
+  emails: []
+  webhook_url: ""
+
+projects:
+  - name: tuya-laravel
+    type: laravel
+    container_name: tuya_laravel_app
+    enabled: true
+    alerts:
+      emails: []
+      min_severity: low
+
+  - name: tuya-postgres
+    type: generic
+    container_name: tuya_postgres
+    enabled: true
+    alerts:
+      emails: []
+      min_severity: low
+
+  - name: tuya-redis
+    type: generic
+    container_name: tuya_redis
+    enabled: true
+    alerts:
+      emails: []
+      min_severity: low

@@ -71,7 +71,8 @@ def setup_logging(log_dir: str = "/app/logs",
     datefmt = "%Y-%m-%dT%H:%M:%S"
 
     # --- Console ---
-    console_handler = logging.StreamHandler(sys.stdout)
+    console_stream = open(sys.stdout.fileno(), mode='w', encoding='utf-8', closefd=False, buffering=1) if hasattr(sys.stdout, 'fileno') else sys.stdout
+    console_handler = logging.StreamHandler(console_stream)
     console_handler.setLevel(numeric_level)
     console_handler.setFormatter(_ColorFormatter(fmt=fmt, datefmt=datefmt))
     root.addHandler(console_handler)
@@ -102,5 +103,5 @@ def setup_logging(log_dir: str = "/app/logs",
     for noisy in ("docker", "urllib3", "asyncio", "aiohttp"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
 
-    root.info("Logging initialised → %s", log_path)
+    root.info("Logging initialised -> %s", log_path)
     return root

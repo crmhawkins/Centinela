@@ -4,7 +4,10 @@ CENTINELA – SQLAlchemy ORM models.
 Default backend: SQLite.
 Migration path to PostgreSQL: change db_url in config.
 """
-from datetime import datetime
+from datetime import datetime, timezone
+
+def _utcnow():
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 from sqlalchemy import (
     BigInteger, Boolean, Column, DateTime, Integer,
@@ -29,7 +32,7 @@ class Incident(Base):
     __tablename__ = "incidents"
 
     id             = Column(Integer, primary_key=True, autoincrement=True)
-    timestamp      = Column(DateTime, default=datetime.utcnow, nullable=False)
+    timestamp      = Column(DateTime, default=_utcnow, nullable=False)
     project        = Column(String(150), nullable=False, index=True)
     container_id   = Column(String(64),  nullable=True)
     container_name = Column(String(200), nullable=False, index=True)
@@ -65,8 +68,8 @@ class NetworkBaseline(Base):
     id             = Column(Integer,  primary_key=True, autoincrement=True)
     container_name = Column(String(200), nullable=False, index=True)
     destination    = Column(String(100), nullable=False)
-    first_seen     = Column(DateTime, nullable=False, default=datetime.utcnow)
-    last_seen      = Column(DateTime, nullable=False, default=datetime.utcnow)
+    first_seen     = Column(DateTime, nullable=False, default=_utcnow)
+    last_seen      = Column(DateTime, nullable=False, default=_utcnow)
     hit_count      = Column(Integer,  nullable=False, default=1)
 
     __table_args__ = (
@@ -88,7 +91,7 @@ class NetworkSample(Base):
 
     id             = Column(Integer,    primary_key=True, autoincrement=True)
     container_name = Column(String(200), nullable=False, index=True)
-    timestamp      = Column(DateTime,   nullable=False, default=datetime.utcnow, index=True)
+    timestamp      = Column(DateTime,   nullable=False, default=_utcnow, index=True)
     bytes_rx       = Column(BigInteger, nullable=False, default=0)
     bytes_tx       = Column(BigInteger, nullable=False, default=0)
     packets_rx     = Column(BigInteger, nullable=False, default=0)
@@ -119,7 +122,7 @@ class FilesystemSnapshot(Base):
     size_bytes     = Column(BigInteger,  nullable=True)
     permissions    = Column(String(10),  nullable=True)
     owner          = Column(String(50),  nullable=True)
-    last_checked   = Column(DateTime,    nullable=False, default=datetime.utcnow)
+    last_checked   = Column(DateTime,    nullable=False, default=_utcnow)
 
     __table_args__ = (
         UniqueConstraint("container_name", "file_path", name="uq_fs_snapshot"),

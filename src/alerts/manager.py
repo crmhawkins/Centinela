@@ -11,7 +11,10 @@ Responsibilities:
 import asyncio
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 from typing import Dict, Optional
 
 from config.models import AlertChannels, GlobalConfig, ProjectConfig
@@ -98,7 +101,7 @@ class AlertManager:
         cooldown_seconds = self._get_cooldown(alert_type)
 
         # 3. In-memory cooldown check (fast path — avoids DB round-trip)
-        now = datetime.utcnow()
+        now = _utcnow()
         last_raised = self._last_raised.get(dedup_key)
         if last_raised is not None:
             elapsed = (now - last_raised).total_seconds()

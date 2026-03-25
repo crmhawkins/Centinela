@@ -1,0 +1,920 @@
+2026-03-25T18:50:47 | [31mERROR   [0m | centinela.monitors.docker_events | DockerEventMonitor: unexpected error in run loop: There is no current event loop in thread 'centinela-docker-events_0'.
+Traceback (most recent call last):
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 488, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\queues.py", line 186, in get
+    await getter
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 269, in _drain_queue
+    event = await asyncio.wait_for(self._queue.get(), timeout=1.0)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 487, in wait_for
+    async with timeouts.timeout(timeout):
+               ~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\timeouts.py", line 114, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 165, in run
+    await self._drain_queue(producer_future)
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 275, in _drain_queue
+    raise exc
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 86, in run
+    result = ctx.run(self.task)
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 73, in run
+    return fn(*args, **kwargs)
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 216, in _stream_events
+    loop = asyncio.get_event_loop()
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py", line 715, in get_event_loop
+    raise RuntimeError('There is no current event loop in thread %r.'
+                       % threading.current_thread().name)
+RuntimeError: There is no current event loop in thread 'centinela-docker-events_0'.
+2026-03-25T18:50:50 | [31mERROR   [0m | centinela.monitors.docker_events | DockerEventMonitor: unexpected error in run loop: There is no current event loop in thread 'centinela-docker-events_0'.
+Traceback (most recent call last):
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 488, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\queues.py", line 186, in get
+    await getter
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 269, in _drain_queue
+    event = await asyncio.wait_for(self._queue.get(), timeout=1.0)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 487, in wait_for
+    async with timeouts.timeout(timeout):
+               ~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\timeouts.py", line 114, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 165, in run
+    await self._drain_queue(producer_future)
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 275, in _drain_queue
+    raise exc
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 86, in run
+    result = ctx.run(self.task)
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 73, in run
+    return fn(*args, **kwargs)
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 216, in _stream_events
+    loop = asyncio.get_event_loop()
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py", line 715, in get_event_loop
+    raise RuntimeError('There is no current event loop in thread %r.'
+                       % threading.current_thread().name)
+RuntimeError: There is no current event loop in thread 'centinela-docker-events_0'.
+2026-03-25T18:50:56 | [31mERROR   [0m | centinela.monitors.docker_events | DockerEventMonitor: unexpected error in run loop: There is no current event loop in thread 'centinela-docker-events_0'.
+Traceback (most recent call last):
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 488, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\queues.py", line 186, in get
+    await getter
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 269, in _drain_queue
+    event = await asyncio.wait_for(self._queue.get(), timeout=1.0)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 487, in wait_for
+    async with timeouts.timeout(timeout):
+               ~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\timeouts.py", line 114, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 165, in run
+    await self._drain_queue(producer_future)
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 275, in _drain_queue
+    raise exc
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 86, in run
+    result = ctx.run(self.task)
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 73, in run
+    return fn(*args, **kwargs)
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 216, in _stream_events
+    loop = asyncio.get_event_loop()
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py", line 715, in get_event_loop
+    raise RuntimeError('There is no current event loop in thread %r.'
+                       % threading.current_thread().name)
+RuntimeError: There is no current event loop in thread 'centinela-docker-events_0'.
+2026-03-25T18:51:05 | [31mERROR   [0m | centinela.monitors.docker_events | DockerEventMonitor: unexpected error in run loop: There is no current event loop in thread 'centinela-docker-events_0'.
+Traceback (most recent call last):
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 488, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\queues.py", line 186, in get
+    await getter
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 269, in _drain_queue
+    event = await asyncio.wait_for(self._queue.get(), timeout=1.0)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 487, in wait_for
+    async with timeouts.timeout(timeout):
+               ~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\timeouts.py", line 114, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 165, in run
+    await self._drain_queue(producer_future)
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 275, in _drain_queue
+    raise exc
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 86, in run
+    result = ctx.run(self.task)
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 73, in run
+    return fn(*args, **kwargs)
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 216, in _stream_events
+    loop = asyncio.get_event_loop()
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py", line 715, in get_event_loop
+    raise RuntimeError('There is no current event loop in thread %r.'
+                       % threading.current_thread().name)
+RuntimeError: There is no current event loop in thread 'centinela-docker-events_0'.
+2026-03-25T18:51:22 | [31mERROR   [0m | centinela.monitors.docker_events | DockerEventMonitor: unexpected error in run loop: There is no current event loop in thread 'centinela-docker-events_0'.
+Traceback (most recent call last):
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 488, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\queues.py", line 186, in get
+    await getter
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 269, in _drain_queue
+    event = await asyncio.wait_for(self._queue.get(), timeout=1.0)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 487, in wait_for
+    async with timeouts.timeout(timeout):
+               ~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\timeouts.py", line 114, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 165, in run
+    await self._drain_queue(producer_future)
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 275, in _drain_queue
+    raise exc
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 86, in run
+    result = ctx.run(self.task)
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 73, in run
+    return fn(*args, **kwargs)
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 216, in _stream_events
+    loop = asyncio.get_event_loop()
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py", line 715, in get_event_loop
+    raise RuntimeError('There is no current event loop in thread %r.'
+                       % threading.current_thread().name)
+RuntimeError: There is no current event loop in thread 'centinela-docker-events_0'.
+2026-03-25T18:51:30 | [31mERROR   [0m | centinela.monitors.docker_events | DockerEventMonitor: unexpected error in run loop: There is no current event loop in thread 'centinela-docker-events_0'.
+Traceback (most recent call last):
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 488, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\queues.py", line 186, in get
+    await getter
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 269, in _drain_queue
+    event = await asyncio.wait_for(self._queue.get(), timeout=1.0)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 487, in wait_for
+    async with timeouts.timeout(timeout):
+               ~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\timeouts.py", line 114, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 165, in run
+    await self._drain_queue(producer_future)
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 275, in _drain_queue
+    raise exc
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 86, in run
+    result = ctx.run(self.task)
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 73, in run
+    return fn(*args, **kwargs)
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 216, in _stream_events
+    loop = asyncio.get_event_loop()
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py", line 715, in get_event_loop
+    raise RuntimeError('There is no current event loop in thread %r.'
+                       % threading.current_thread().name)
+RuntimeError: There is no current event loop in thread 'centinela-docker-events_0'.
+2026-03-25T18:51:33 | [31mERROR   [0m | centinela.monitors.docker_events | DockerEventMonitor: unexpected error in run loop: There is no current event loop in thread 'centinela-docker-events_0'.
+Traceback (most recent call last):
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 488, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\queues.py", line 186, in get
+    await getter
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 269, in _drain_queue
+    event = await asyncio.wait_for(self._queue.get(), timeout=1.0)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 487, in wait_for
+    async with timeouts.timeout(timeout):
+               ~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\timeouts.py", line 114, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 165, in run
+    await self._drain_queue(producer_future)
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 275, in _drain_queue
+    raise exc
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 86, in run
+    result = ctx.run(self.task)
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 73, in run
+    return fn(*args, **kwargs)
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 216, in _stream_events
+    loop = asyncio.get_event_loop()
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py", line 715, in get_event_loop
+    raise RuntimeError('There is no current event loop in thread %r.'
+                       % threading.current_thread().name)
+RuntimeError: There is no current event loop in thread 'centinela-docker-events_0'.
+2026-03-25T18:51:38 | [31mERROR   [0m | centinela.monitors.docker_events | DockerEventMonitor: unexpected error in run loop: There is no current event loop in thread 'centinela-docker-events_0'.
+Traceback (most recent call last):
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 488, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\queues.py", line 186, in get
+    await getter
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 269, in _drain_queue
+    event = await asyncio.wait_for(self._queue.get(), timeout=1.0)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 487, in wait_for
+    async with timeouts.timeout(timeout):
+               ~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\timeouts.py", line 114, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 165, in run
+    await self._drain_queue(producer_future)
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 275, in _drain_queue
+    raise exc
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 86, in run
+    result = ctx.run(self.task)
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 73, in run
+    return fn(*args, **kwargs)
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 216, in _stream_events
+    loop = asyncio.get_event_loop()
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py", line 715, in get_event_loop
+    raise RuntimeError('There is no current event loop in thread %r.'
+                       % threading.current_thread().name)
+RuntimeError: There is no current event loop in thread 'centinela-docker-events_0'.
+2026-03-25T18:51:47 | [31mERROR   [0m | centinela.monitors.docker_events | DockerEventMonitor: unexpected error in run loop: There is no current event loop in thread 'centinela-docker-events_0'.
+Traceback (most recent call last):
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 488, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\queues.py", line 186, in get
+    await getter
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 269, in _drain_queue
+    event = await asyncio.wait_for(self._queue.get(), timeout=1.0)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 487, in wait_for
+    async with timeouts.timeout(timeout):
+               ~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\timeouts.py", line 114, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 165, in run
+    await self._drain_queue(producer_future)
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 275, in _drain_queue
+    raise exc
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 86, in run
+    result = ctx.run(self.task)
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 73, in run
+    return fn(*args, **kwargs)
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 216, in _stream_events
+    loop = asyncio.get_event_loop()
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py", line 715, in get_event_loop
+    raise RuntimeError('There is no current event loop in thread %r.'
+                       % threading.current_thread().name)
+RuntimeError: There is no current event loop in thread 'centinela-docker-events_0'.
+2026-03-25T18:51:55 | [31mERROR   [0m | centinela.monitors.docker_events | DockerEventMonitor: unexpected error in run loop: There is no current event loop in thread 'centinela-docker-events_0'.
+Traceback (most recent call last):
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 488, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\queues.py", line 186, in get
+    await getter
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 269, in _drain_queue
+    event = await asyncio.wait_for(self._queue.get(), timeout=1.0)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 487, in wait_for
+    async with timeouts.timeout(timeout):
+               ~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\timeouts.py", line 114, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 165, in run
+    await self._drain_queue(producer_future)
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 275, in _drain_queue
+    raise exc
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 86, in run
+    result = ctx.run(self.task)
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 73, in run
+    return fn(*args, **kwargs)
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 216, in _stream_events
+    loop = asyncio.get_event_loop()
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py", line 715, in get_event_loop
+    raise RuntimeError('There is no current event loop in thread %r.'
+                       % threading.current_thread().name)
+RuntimeError: There is no current event loop in thread 'centinela-docker-events_0'.
+2026-03-25T18:52:04 | [31mERROR   [0m | centinela.monitors.docker_events | DockerEventMonitor: unexpected error in run loop: There is no current event loop in thread 'centinela-docker-events_0'.
+Traceback (most recent call last):
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 488, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\queues.py", line 186, in get
+    await getter
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 269, in _drain_queue
+    event = await asyncio.wait_for(self._queue.get(), timeout=1.0)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 487, in wait_for
+    async with timeouts.timeout(timeout):
+               ~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\timeouts.py", line 114, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 165, in run
+    await self._drain_queue(producer_future)
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 275, in _drain_queue
+    raise exc
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 86, in run
+    result = ctx.run(self.task)
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 73, in run
+    return fn(*args, **kwargs)
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 216, in _stream_events
+    loop = asyncio.get_event_loop()
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py", line 715, in get_event_loop
+    raise RuntimeError('There is no current event loop in thread %r.'
+                       % threading.current_thread().name)
+RuntimeError: There is no current event loop in thread 'centinela-docker-events_0'.
+2026-03-25T18:52:37 | [31mERROR   [0m | centinela.monitors.docker_events | DockerEventMonitor: unexpected error in run loop: There is no current event loop in thread 'centinela-docker-events_0'.
+Traceback (most recent call last):
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 488, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\queues.py", line 186, in get
+    await getter
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 269, in _drain_queue
+    """
+    
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 487, in wait_for
+    async with timeouts.timeout(timeout):
+               ~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\timeouts.py", line 114, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 165, in run
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 275, in _drain_queue
+    # Check if the producer raised while we were waiting
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 86, in run
+    result = ctx.run(self.task)
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 73, in run
+    return fn(*args, **kwargs)
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 216, in _stream_events
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py", line 715, in get_event_loop
+    raise RuntimeError('There is no current event loop in thread %r.'
+                       % threading.current_thread().name)
+RuntimeError: There is no current event loop in thread 'centinela-docker-events_0'.
+2026-03-25T18:52:56 | [31mERROR   [0m | centinela.monitors.docker_events | DockerEventMonitor: unexpected error in run loop: There is no current event loop in thread 'centinela-docker-events_0'.
+Traceback (most recent call last):
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 488, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\queues.py", line 186, in get
+    await getter
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 269, in _drain_queue
+    """
+    
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 487, in wait_for
+    async with timeouts.timeout(timeout):
+               ~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\timeouts.py", line 114, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 165, in run
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 275, in _drain_queue
+    # Check if the producer raised while we were waiting
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 86, in run
+    result = ctx.run(self.task)
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 73, in run
+    return fn(*args, **kwargs)
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 216, in _stream_events
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py", line 715, in get_event_loop
+    raise RuntimeError('There is no current event loop in thread %r.'
+                       % threading.current_thread().name)
+RuntimeError: There is no current event loop in thread 'centinela-docker-events_0'.
+2026-03-25T18:53:38 | [31mERROR   [0m | centinela.monitors.docker_events | DockerEventMonitor: unexpected error in run loop: There is no current event loop in thread 'centinela-docker-events_0'.
+Traceback (most recent call last):
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 488, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\queues.py", line 186, in get
+    await getter
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 269, in _drain_queue
+    """
+    
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 487, in wait_for
+    async with timeouts.timeout(timeout):
+               ~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\timeouts.py", line 114, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 165, in run
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 275, in _drain_queue
+    # Check if the producer raised while we were waiting
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 86, in run
+    result = ctx.run(self.task)
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 73, in run
+    return fn(*args, **kwargs)
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 216, in _stream_events
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py", line 715, in get_event_loop
+    raise RuntimeError('There is no current event loop in thread %r.'
+                       % threading.current_thread().name)
+RuntimeError: There is no current event loop in thread 'centinela-docker-events_0'.
+2026-03-25T18:53:57 | [31mERROR   [0m | centinela.monitors.docker_events | DockerEventMonitor: unexpected error in run loop: There is no current event loop in thread 'centinela-docker-events_0'.
+Traceback (most recent call last):
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 488, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\queues.py", line 186, in get
+    await getter
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 269, in _drain_queue
+    """
+    
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 487, in wait_for
+    async with timeouts.timeout(timeout):
+               ~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\timeouts.py", line 114, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 165, in run
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 275, in _drain_queue
+    # Check if the producer raised while we were waiting
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 86, in run
+    result = ctx.run(self.task)
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 73, in run
+    return fn(*args, **kwargs)
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 216, in _stream_events
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py", line 715, in get_event_loop
+    raise RuntimeError('There is no current event loop in thread %r.'
+                       % threading.current_thread().name)
+RuntimeError: There is no current event loop in thread 'centinela-docker-events_0'.
+2026-03-25T18:54:39 | [31mERROR   [0m | centinela.monitors.docker_events | DockerEventMonitor: unexpected error in run loop: There is no current event loop in thread 'centinela-docker-events_0'.
+Traceback (most recent call last):
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 488, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\queues.py", line 186, in get
+    await getter
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 269, in _drain_queue
+    """
+    
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 487, in wait_for
+    async with timeouts.timeout(timeout):
+               ~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\timeouts.py", line 114, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 165, in run
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 275, in _drain_queue
+    # Check if the producer raised while we were waiting
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 86, in run
+    result = ctx.run(self.task)
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 73, in run
+    return fn(*args, **kwargs)
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 216, in _stream_events
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py", line 715, in get_event_loop
+    raise RuntimeError('There is no current event loop in thread %r.'
+                       % threading.current_thread().name)
+RuntimeError: There is no current event loop in thread 'centinela-docker-events_0'.
+2026-03-25T18:54:58 | [31mERROR   [0m | centinela.monitors.docker_events | DockerEventMonitor: unexpected error in run loop: There is no current event loop in thread 'centinela-docker-events_0'.
+Traceback (most recent call last):
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 488, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\queues.py", line 186, in get
+    await getter
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 269, in _drain_queue
+    """
+    
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 487, in wait_for
+    async with timeouts.timeout(timeout):
+               ~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\timeouts.py", line 114, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 165, in run
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 275, in _drain_queue
+    # Check if the producer raised while we were waiting
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 86, in run
+    result = ctx.run(self.task)
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 73, in run
+    return fn(*args, **kwargs)
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 216, in _stream_events
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py", line 715, in get_event_loop
+    raise RuntimeError('There is no current event loop in thread %r.'
+                       % threading.current_thread().name)
+RuntimeError: There is no current event loop in thread 'centinela-docker-events_0'.
+2026-03-25T18:55:40 | [31mERROR   [0m | centinela.monitors.docker_events | DockerEventMonitor: unexpected error in run loop: There is no current event loop in thread 'centinela-docker-events_0'.
+Traceback (most recent call last):
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 488, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\queues.py", line 186, in get
+    await getter
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 269, in _drain_queue
+    """
+    
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 487, in wait_for
+    async with timeouts.timeout(timeout):
+               ~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\timeouts.py", line 114, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 165, in run
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 275, in _drain_queue
+    # Check if the producer raised while we were waiting
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 86, in run
+    result = ctx.run(self.task)
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 73, in run
+    return fn(*args, **kwargs)
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 216, in _stream_events
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py", line 715, in get_event_loop
+    raise RuntimeError('There is no current event loop in thread %r.'
+                       % threading.current_thread().name)
+RuntimeError: There is no current event loop in thread 'centinela-docker-events_0'.
+2026-03-25T18:55:59 | [31mERROR   [0m | centinela.monitors.docker_events | DockerEventMonitor: unexpected error in run loop: There is no current event loop in thread 'centinela-docker-events_0'.
+Traceback (most recent call last):
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 488, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\queues.py", line 186, in get
+    await getter
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 269, in _drain_queue
+    """
+    
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 487, in wait_for
+    async with timeouts.timeout(timeout):
+               ~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\timeouts.py", line 114, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 165, in run
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 275, in _drain_queue
+    # Check if the producer raised while we were waiting
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 86, in run
+    result = ctx.run(self.task)
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 73, in run
+    return fn(*args, **kwargs)
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 216, in _stream_events
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py", line 715, in get_event_loop
+    raise RuntimeError('There is no current event loop in thread %r.'
+                       % threading.current_thread().name)
+RuntimeError: There is no current event loop in thread 'centinela-docker-events_0'.
+2026-03-25T18:56:41 | [31mERROR   [0m | centinela.monitors.docker_events | DockerEventMonitor: unexpected error in run loop: There is no current event loop in thread 'centinela-docker-events_0'.
+Traceback (most recent call last):
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 488, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\queues.py", line 186, in get
+    await getter
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 269, in _drain_queue
+    self, producer_future: asyncio.Future
+                    ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 487, in wait_for
+    async with timeouts.timeout(timeout):
+               ~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\timeouts.py", line 114, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 165, in run
+    except asyncio.QueueEmpty:
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 275, in _drain_queue
+    Also checks the producer future for exceptions so connection
+                    ^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 86, in run
+    result = ctx.run(self.task)
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 73, in run
+    return fn(*args, **kwargs)
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 216, in _stream_events
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py", line 715, in get_event_loop
+    raise RuntimeError('There is no current event loop in thread %r.'
+                       % threading.current_thread().name)
+RuntimeError: There is no current event loop in thread 'centinela-docker-events_0'.
+2026-03-25T18:57:00 | [31mERROR   [0m | centinela.monitors.docker_events | DockerEventMonitor: unexpected error in run loop: There is no current event loop in thread 'centinela-docker-events_0'.
+Traceback (most recent call last):
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 488, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\queues.py", line 186, in get
+    await getter
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 269, in _drain_queue
+    self, producer_future: asyncio.Future
+                    ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 487, in wait_for
+    async with timeouts.timeout(timeout):
+               ~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\timeouts.py", line 114, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 165, in run
+    except asyncio.QueueEmpty:
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 275, in _drain_queue
+    Also checks the producer future for exceptions so connection
+                    ^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 86, in run
+    result = ctx.run(self.task)
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 73, in run
+    return fn(*args, **kwargs)
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 216, in _stream_events
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py", line 715, in get_event_loop
+    raise RuntimeError('There is no current event loop in thread %r.'
+                       % threading.current_thread().name)
+RuntimeError: There is no current event loop in thread 'centinela-docker-events_0'.
+2026-03-25T18:57:42 | [31mERROR   [0m | centinela.monitors.docker_events | DockerEventMonitor: unexpected error in run loop: There is no current event loop in thread 'centinela-docker-events_0'.
+Traceback (most recent call last):
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 488, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\queues.py", line 186, in get
+    await getter
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 269, in _drain_queue
+    self, producer_future: asyncio.Future
+                    ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 487, in wait_for
+    async with timeouts.timeout(timeout):
+               ~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\timeouts.py", line 114, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 165, in run
+    except asyncio.QueueEmpty:
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 275, in _drain_queue
+    Also checks the producer future for exceptions so connection
+                    ^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 86, in run
+    result = ctx.run(self.task)
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 73, in run
+    return fn(*args, **kwargs)
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 216, in _stream_events
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py", line 715, in get_event_loop
+    raise RuntimeError('There is no current event loop in thread %r.'
+                       % threading.current_thread().name)
+RuntimeError: There is no current event loop in thread 'centinela-docker-events_0'.
+2026-03-25T18:58:01 | [31mERROR   [0m | centinela.monitors.docker_events | DockerEventMonitor: unexpected error in run loop: There is no current event loop in thread 'centinela-docker-events_0'.
+Traceback (most recent call last):
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 488, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\queues.py", line 186, in get
+    await getter
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 269, in _drain_queue
+    self, producer_future: asyncio.Future
+                    ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 487, in wait_for
+    async with timeouts.timeout(timeout):
+               ~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\timeouts.py", line 114, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 165, in run
+    except asyncio.QueueEmpty:
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 275, in _drain_queue
+    Also checks the producer future for exceptions so connection
+                    ^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 86, in run
+    result = ctx.run(self.task)
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 73, in run
+    return fn(*args, **kwargs)
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 216, in _stream_events
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py", line 715, in get_event_loop
+    raise RuntimeError('There is no current event loop in thread %r.'
+                       % threading.current_thread().name)
+RuntimeError: There is no current event loop in thread 'centinela-docker-events_0'.
+2026-03-25T18:58:43 | [31mERROR   [0m | centinela.monitors.docker_events | DockerEventMonitor: unexpected error in run loop: There is no current event loop in thread 'centinela-docker-events_0'.
+Traceback (most recent call last):
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 488, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\queues.py", line 186, in get
+    await getter
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 269, in _drain_queue
+    self, producer_future: asyncio.Future
+                    ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\tasks.py", line 487, in wait_for
+    async with timeouts.timeout(timeout):
+               ~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\timeouts.py", line 114, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 165, in run
+    except asyncio.QueueEmpty:
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 275, in _drain_queue
+    Also checks the producer future for exceptions so connection
+                    ^^^^^^^^^
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 86, in run
+    result = ctx.run(self.task)
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\concurrent\futures\thread.py", line 73, in run
+    return fn(*args, **kwargs)
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 216, in _stream_events
+  File "C:\Users\ivanj\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py", line 715, in get_event_loop
+    raise RuntimeError('There is no current event loop in thread %r.'
+                       % threading.current_thread().name)
+RuntimeError: There is no current event loop in thread 'centinela-docker-events_0'.
