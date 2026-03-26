@@ -49,6 +49,7 @@ _BACKOFF_FACTOR = 2.0
 # How many restart events in a sliding window count as a "burst"
 _RESTART_BURST_COUNT = 3
 _RESTART_BURST_WINDOW = 300  # seconds
+_HEALTHCHECK_TRACE_LOG_WINDOW = 600  # seconds
 
 # Exec commands issued by Centinela itself (filesystem permission checks).
 # These must be ignored to prevent self-detection feedback loops.
@@ -123,6 +124,10 @@ class DockerEventMonitor:
         self._exec_callbacks: list = []    # called with (container_name: str)
         self._start_callbacks: list = []   # called with (container_name, container_id, project)
         self._stop_callbacks: list = []    # called with (container_name: str)
+
+        # Rate-limit noisy healthcheck trace lines:
+        # key -> monotonic timestamp of last emitted log
+        self._healthcheck_trace_last: Dict[str, float] = {}
 
     # ------------------------------------------------------------------
     # Callback registration (called from main.py after instantiation)
@@ -244,13 +249,19 @@ class DockerEventMonitor:
         def put(item: Optional[Dict[str, Any]]) -> None:
             """Thread-safe enqueue to the asyncio queue."""
             try:
+                if loop is None or loop.is_closed():
+                    return
                 # run_coroutine_threadsafe blocks until the item is accepted
                 future = asyncio.run_coroutine_threadsafe(
                     self._queue.put(item), loop
                 )
                 future.result(timeout=5)
             except Exception as e:
-                logger.warning("DockerEventMonitor: could not enqueue event: %s", e)
+                # Happens on shutdown/reload; keep it as debug unless we're active.
+                if self._stop_event.is_set():
+                    logger.debug("DockerEventMonitor: enqueue skipped during stop.")
+                else:
+                    logger.warning("DockerEventMonitor: could not enqueue event: %r", e)
 
         try:
             client = docker.from_env()
@@ -438,10 +449,20 @@ class DockerEventMonitor:
         # Skip trusted exec commands (Centinela internals, healthchecks, patterns, destinations)
         trusted, reason = self._is_trusted_exec(cmd, container_name, project)
         if trusted:
-            logger.info(
-                "TRACE_HEALTHCHECK_EXEC: container=%s exec_id=%s cmd=%r reason=%s",
-                container_name, exec_id[:12] if exec_id else "unknown", cmd, reason,
-            )
+            trace_key = f"{container_name}:{reason}:{cmd[:120]}"
+            now = time.monotonic()
+            last = self._healthcheck_trace_last.get(trace_key, 0.0)
+            if now - last >= _HEALTHCHECK_TRACE_LOG_WINDOW:
+                self._healthcheck_trace_last[trace_key] = now
+                logger.info(
+                    "TRACE_HEALTHCHECK_EXEC: container=%s exec_id=%s cmd=%r reason=%s",
+                    container_name, exec_id[:12] if exec_id else "unknown", cmd, reason,
+                )
+            else:
+                logger.debug(
+                    "TRACE_HEALTHCHECK_EXEC_SUPPRESSED: container=%s reason=%s",
+                    container_name, reason,
+                )
             return
 
         logger.alert(

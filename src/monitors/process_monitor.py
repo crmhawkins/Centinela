@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from typing import Dict, List, Optional, Set, Tuple
 
 import docker
@@ -58,6 +59,7 @@ _PS_AUX_CMD_ALIAS = "CMD"          # some kernels use CMD
 
 # PID 1 is always the container's main process – never suspicious
 _MAIN_PID = "1"
+_HEALTHCHECK_TRACE_LOG_WINDOW = 600  # seconds
 
 
 class ProcessMonitor:
@@ -90,6 +92,7 @@ class ProcessMonitor:
         # Track which containers we have already warned are not running
         # (to avoid log spam on stopped containers)
         self._not_running_warned: Set[str] = set()
+        self._healthcheck_trace_last: Dict[str, float] = {}
 
         self._stop_event = asyncio.Event()
 
@@ -347,12 +350,22 @@ class ProcessMonitor:
 
             # Healthcheck commands are expected operational noise.
             if looks_like_healthcheck_command(cmd):
-                logger.info(
-                    "TRACE_HEALTHCHECK_PROCESS: container=%s pid=%s cmd=%s",
-                    container_name,
-                    str(pid).strip() or "unknown",
-                    cmd[:200],
-                )
+                trace_key = f"{container_name}:{cmd[:120]}"
+                now = time.monotonic()
+                last = self._healthcheck_trace_last.get(trace_key, 0.0)
+                if now - last >= _HEALTHCHECK_TRACE_LOG_WINDOW:
+                    self._healthcheck_trace_last[trace_key] = now
+                    logger.info(
+                        "TRACE_HEALTHCHECK_PROCESS: container=%s pid=%s cmd=%s",
+                        container_name,
+                        str(pid).strip() or "unknown",
+                        cmd[:200],
+                    )
+                else:
+                    logger.debug(
+                        "TRACE_HEALTHCHECK_PROCESS_SUPPRESSED: container=%s",
+                        container_name,
+                    )
                 continue
 
             # ---- Standard suspicious-process check --------------------
