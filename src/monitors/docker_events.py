@@ -364,6 +364,11 @@ class DockerEventMonitor:
             # Determine the canonical action (strip exec details from action string)
             base_action = action.split(":")[0].strip().lower()
 
+            # High-frequency Docker noise actions (especially healthchecks).
+            # We intentionally ignore them completely to avoid log floods.
+            if base_action in {"exec_create", "exec_die", "top"}:
+                return
+
             if base_action == "exec_start":
                 if project and not project.monitor_docker_events:
                     return
@@ -457,11 +462,6 @@ class DockerEventMonitor:
                 logger.info(
                     "TRACE_HEALTHCHECK_EXEC: container=%s exec_id=%s cmd=%r reason=%s",
                     container_name, exec_id[:12] if exec_id else "unknown", cmd, reason,
-                )
-            else:
-                logger.debug(
-                    "TRACE_HEALTHCHECK_EXEC_SUPPRESSED: container=%s reason=%s",
-                    container_name, reason,
                 )
             return
 

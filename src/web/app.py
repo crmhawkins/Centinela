@@ -436,19 +436,34 @@ def create_web_app() -> FastAPI:
             logging.getLogger("centinela.web").error("Container incident summary error: %s", exc)
 
         for row in containers:
+            row.setdefault("cpu_pct", 0.0)
+            row.setdefault("mem_pct", 0.0)
+            row.setdefault("mem_usage_human", "—")
+            row.setdefault("mem_limit_human", "—")
+            row.setdefault("disk_rw_human", "—")
+            row.setdefault("net_rx_human", "—")
+            row.setdefault("net_tx_human", "—")
             stats = by_container.get(row["name"], {})
             row["inc_total"] = stats.get("total", 0)
             row["inc_open"] = stats.get("open", 0)
             row["inc_critical"] = stats.get("critical", 0)
             row["inc_last_7d"] = stats.get("last_7d", 0)
 
-        return templates.TemplateResponse(
-            request=request,
-            name="containers.html",
-            context={
-                "containers": containers,
-            },
-        )
+        try:
+            return templates.TemplateResponse(
+                request=request,
+                name="containers.html",
+                context={
+                    "containers": containers,
+                },
+            )
+        except Exception as exc:
+            import logging
+            logging.getLogger("centinela.web").error("Containers template error: %s", exc)
+            return HTMLResponse(
+                content="<h1>Containers unavailable</h1><p>Check CENTINELA logs for details.</p>",
+                status_code=503,
+            )
 
     # ------------------------------------------------------------------
     # GET /incidents/{incident_id} — Incident detail
