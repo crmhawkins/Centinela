@@ -68,6 +68,52 @@ class IncidentRepository:
             stmt = stmt.limit(limit)
             return list(session.scalars(stmt).all())
 
+    def get_incidents_paginated(
+        self,
+        project: Optional[str] = None,
+        status: Optional[str] = None,
+        severity: Optional[str] = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> List[Incident]:
+        """
+        Fetch a page of incidents ordered by newest first.
+
+        Offset/limit are intended for UI pagination.
+        """
+        with self._Session() as session:
+            stmt = select(Incident).order_by(Incident.timestamp.desc())
+            if project:
+                stmt = stmt.where(Incident.project == project)
+            if status:
+                stmt = stmt.where(Incident.status == status)
+            if severity:
+                stmt = stmt.where(Incident.severity == severity)
+            stmt = stmt.offset(offset).limit(limit)
+            return list(session.scalars(stmt).all())
+
+    def count_incidents(
+        self,
+        project: Optional[str] = None,
+        status: Optional[str] = None,
+        severity: Optional[str] = None,
+    ) -> int:
+        """Count incidents for filtered pagination UI."""
+        with self._Session() as session:
+            stmt = select(func.count(Incident.id))
+            if project:
+                stmt = stmt.where(Incident.project == project)
+            if status:
+                stmt = stmt.where(Incident.status == status)
+            if severity:
+                stmt = stmt.where(Incident.severity == severity)
+            return int(session.scalar(stmt) or 0)
+
+    def get_incident_by_id(self, incident_id: int) -> Optional[Incident]:
+        """Fetch a single incident (used by UI detail views)."""
+        with self._Session() as session:
+            return session.scalar(select(Incident).where(Incident.id == incident_id))
+
     def update_incident_status(self, incident_id: int, status: str) -> None:
         with self._Session() as session:
             session.execute(

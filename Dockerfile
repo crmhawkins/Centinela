@@ -49,6 +49,9 @@ ENV CENTINELA_CONFIG=/app/config/centinela.yml
 # Prevent Python from writing .pyc files into the image layers
 ENV PYTHONDONTWRITEBYTECODE=1
 
+# Web panel port (FastAPI)
+EXPOSE 8000
+
 # ---------------------------------------------------------------------------
 # Volumes
 # ---------------------------------------------------------------------------

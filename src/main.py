@@ -24,6 +24,7 @@ from monitors.network_monitor import NetworkMonitor
 from monitors.filesystem_monitor import FilesystemMonitor
 from monitors.security_audit import SecurityAuditMonitor
 from logging_manager.logger import setup_logging
+from web.panel_app import create_panel_app, run_panel_server
 
 logger = logging.getLogger("centinela.main")
 
@@ -267,6 +268,20 @@ async def main() -> None:
         asyncio.create_task(fs_monitor.run(), name="filesystem-monitor"),
         asyncio.create_task(security_monitor.run(), name="security-audit"),
     ]
+
+    # ------------------------------------------------------------------ #
+    # 11. Web panel (FastAPI) for logs/incidents/config overrides
+    # ------------------------------------------------------------------ #
+    overrides_path = os.environ.get("CENTINELA_OVERRIDES_PATH", "/app/data/config_overrides.yml")
+    panel_app = create_panel_app(
+        repository=repository,
+        config_path=config_path,
+        log_dir=config.log_dir,
+        overrides_path=overrides_path,
+    )
+    monitor_tasks.append(
+        asyncio.create_task(run_panel_server(panel_app), name="web-panel")
+    )
 
     # ------------------------------------------------------------------ #
     # 9. Graceful shutdown via SIGTERM / SIGINT

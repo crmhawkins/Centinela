@@ -7,7 +7,7 @@ config/projects/*.yml, returns a fully populated GlobalConfig.
 import os
 import logging
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List, Tuple
 
 import yaml
 
@@ -21,6 +21,10 @@ from .models import (
 )
 
 logger = logging.getLogger("centinela.config")
+
+# Where the panel persists runtime-safe overrides.
+# This lives under /app/data (writable volume).
+_DEFAULT_OVERRIDES_PATH = "/app/data/config_overrides.yml"
 
 
 # ---------------------------------------------------------------------------
@@ -85,6 +89,16 @@ def _load_network_thresholds(raw: Dict) -> NetworkThresholds:
     )
 
 
+def _load_alert_channels_from_alert_obj(alerts_raw: Dict) -> AlertChannels:
+    """Load AlertChannels from an `alerts:` dict."""
+    return AlertChannels(
+        emails=alerts_raw.get("emails", []),
+        webhook_url=alerts_raw.get("webhook_url"),
+        whatsapp_webhook=alerts_raw.get("whatsapp_webhook"),
+        min_severity=alerts_raw.get("min_severity", "medium"),
+    )
+
+
 def _load_project(raw: Dict, source_file: str) -> Optional[ProjectConfig]:
     name = raw.get("name")
     if not name:
@@ -116,6 +130,132 @@ def _load_project(raw: Dict, source_file: str) -> Optional[ProjectConfig]:
         monitor_docker_events=raw.get("monitor_docker_events", True),
         enabled=raw.get("enabled", True),
     )
+
+
+def _apply_overrides(cfg: GlobalConfig, overrides_raw: Dict[str, Any]) -> None:
+    """
+    Apply persisted overrides to the already-loaded GlobalConfig.
+
+    Supported override schema (best-effort, defensive):
+    - global: { storage?, smtp?, monitoring?, alert_cooldown?, default_alerts? }
+    - projects: either a list of {name: "...", ...fields...} or a dict
+                 { "<name>": { ...fields... }, ... }
+    """
+    # --- Global overrides ---
+    global_raw = overrides_raw.get("global", {}) if isinstance(overrides_raw, dict) else {}
+    if not isinstance(global_raw, dict):
+        global_raw = {}
+
+    storage_raw = global_raw.get("storage", {})
+    if isinstance(storage_raw, dict):
+        if storage_raw.get("db_url"):
+            cfg.db_url = storage_raw["db_url"]
+        if storage_raw.get("log_dir"):
+            cfg.log_dir = storage_raw["log_dir"]
+
+    if isinstance(global_raw.get("smtp"), dict):
+        cfg.smtp = _load_smtp(global_raw["smtp"])
+
+    monitoring_raw = global_raw.get("monitoring", {})
+    if isinstance(monitoring_raw, dict):
+        if "network_sample_interval" in monitoring_raw:
+            cfg.network_sample_interval = int(monitoring_raw["network_sample_interval"])
+        if "process_check_interval" in monitoring_raw:
+            cfg.process_check_interval = int(monitoring_raw["process_check_interval"])
+        if "security_audit_interval" in monitoring_raw:
+            cfg.security_audit_interval = int(monitoring_raw["security_audit_interval"])
+        if "fs_permission_check_interval" in monitoring_raw:
+            cfg.fs_permission_check_interval = int(monitoring_raw["fs_permission_check_interval"])
+
+    alert_cooldown_raw = global_raw.get("alert_cooldown", {})
+    if isinstance(alert_cooldown_raw, dict):
+        for k, v in alert_cooldown_raw.items():
+            try:
+                cfg.alert_cooldown[str(k)] = int(v)
+            except Exception:
+                continue
+
+    default_alerts_raw = global_raw.get("default_alerts", {})
+    if isinstance(default_alerts_raw, dict):
+        # Preserve existing defaults if override omits fields.
+        if "emails" in default_alerts_raw and isinstance(default_alerts_raw["emails"], list):
+            cfg.default_emails = list(default_alerts_raw["emails"])
+        if "webhook_url" in default_alerts_raw:
+            cfg.default_webhook_url = default_alerts_raw.get("webhook_url")
+        if "whatsapp_webhook" in default_alerts_raw:
+            cfg.default_whatsapp_webhook = default_alerts_raw.get("whatsapp_webhook")
+
+    # --- Per-project overrides ---
+    projects_raw = overrides_raw.get("projects", []) if isinstance(overrides_raw, dict) else []
+    project_items: List[Tuple[str, Dict[str, Any]]] = []
+
+    if isinstance(projects_raw, dict):
+        for name, pdata in projects_raw.items():
+            if not isinstance(pdata, dict):
+                continue
+            project_items.append((str(name), pdata))
+    elif isinstance(projects_raw, list):
+        for item in projects_raw:
+            if not isinstance(item, dict):
+                continue
+            name = item.get("name")
+            if not name:
+                continue
+            pdata = dict(item)
+            pdata.pop("name", None)
+            project_items.append((str(name), pdata))
+
+    if not project_items:
+        return
+
+    # Index projects by name for fast lookup
+    by_name: Dict[str, ProjectConfig] = {p.name: p for p in cfg.projects}
+
+    for name, pdata in project_items:
+        project = by_name.get(name)
+        if project is None:
+            continue
+
+        # Simple fields
+        for field_name in (
+            "container_name",
+            "container_label",
+            "container_name_prefix",
+            "app_root_in_container",
+            "enabled",
+            "monitor_filesystem",
+            "monitor_processes",
+            "monitor_network",
+            "monitor_docker_events",
+        ):
+            if field_name in pdata:
+                setattr(project, field_name, pdata[field_name])
+
+        # Synonyms
+        if "app_root" in pdata:
+            project.app_root_in_container = str(pdata["app_root"])
+
+        if "critical_paths" in pdata:
+            project.custom_critical_paths = list(pdata.get("critical_paths") or [])
+
+        if "custom_critical_paths" in pdata:
+            project.custom_critical_paths = list(pdata.get("custom_critical_paths") or [])
+
+        if "exclude_paths" in pdata:
+            project.exclude_paths = list(pdata.get("exclude_paths") or [])
+
+        if "extra_suspicious_processes" in pdata:
+            project.extra_suspicious_processes = list(pdata.get("extra_suspicious_processes") or [])
+
+        # Nested dataclasses: alerts / network / deployment_windows
+        if isinstance(pdata.get("alerts"), dict):
+            project.alerts = _load_alert_channels_from_alert_obj(pdata["alerts"])
+
+        if isinstance(pdata.get("network"), dict):
+            project.network = _load_network_thresholds({"network": pdata["network"]})
+
+        if isinstance(pdata.get("deployment_windows"), list):
+            project.deployment_windows = _load_deployment_windows({"deployment_windows": pdata["deployment_windows"]})
 
 
 # ---------------------------------------------------------------------------
@@ -189,6 +329,21 @@ def load_config(config_path: str = "/app/config/centinela.yml") -> GlobalConfig:
                     cfg.projects.append(project)
             except Exception as exc:
                 logger.error("Failed to load project file %s: %s", yml_file, exc)
+
+    # Apply persisted overrides (panel config). This is applied at startup.
+    overrides_path = os.environ.get("CENTINELA_OVERRIDES_PATH", _DEFAULT_OVERRIDES_PATH)
+    overrides_file = Path(overrides_path)
+    if overrides_file.exists():
+        try:
+            with overrides_file.open("r", encoding="utf-8") as f:
+                raw_overrides = yaml.safe_load(f) or {}
+            if isinstance(raw_overrides, dict):
+                _apply_overrides(cfg, raw_overrides)
+                logger.info("Config overrides applied from %s.", overrides_path)
+            else:
+                logger.warning("Overrides file %s is not a YAML dict, ignoring.", overrides_path)
+        except Exception as exc:
+            logger.error("Failed to load config overrides from %s: %s", overrides_path, exc)
 
     enabled = [p for p in cfg.projects if p.enabled]
     logger.info("Configuration loaded: %d projects (%d enabled).",
