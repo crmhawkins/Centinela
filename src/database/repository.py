@@ -114,6 +114,34 @@ class IncidentRepository:
         with self._Session() as session:
             return session.scalar(select(Incident).where(Incident.id == incident_id))
 
+    def get_incident_stats(self, hours: int = 24) -> dict:
+        """
+        Return aggregate incident stats for dashboard widgets.
+        """
+        cutoff = _utcnow() - timedelta(hours=max(1, int(hours)))
+        with self._Session() as session:
+            total = int(
+                session.scalar(
+                    select(func.count(Incident.id)).where(Incident.timestamp >= cutoff)
+                )
+                or 0
+            )
+            by_severity_rows = session.execute(
+                select(Incident.severity, func.count(Incident.id))
+                .where(Incident.timestamp >= cutoff)
+                .group_by(Incident.severity)
+            ).all()
+            by_status_rows = session.execute(
+                select(Incident.status, func.count(Incident.id))
+                .group_by(Incident.status)
+            ).all()
+            return {
+                "window_hours": int(hours),
+                "total_last_window": total,
+                "by_severity": {str(k): int(v) for k, v in by_severity_rows},
+                "by_status": {str(k): int(v) for k, v in by_status_rows},
+            }
+
     def update_incident_status(self, incident_id: int, status: str) -> None:
         with self._Session() as session:
             session.execute(
@@ -227,6 +255,50 @@ class IncidentRepository:
             )
             session.commit()
             return result.rowcount
+
+    def get_network_usage_stats(self, hours: int = 24) -> dict:
+        """
+        Aggregate bytes/packets and top containers from recent network_samples.
+        """
+        cutoff = _utcnow() - timedelta(hours=max(1, int(hours)))
+        with self._Session() as session:
+            totals = session.execute(
+                select(
+                    func.coalesce(func.sum(NetworkSample.bytes_rx), 0),
+                    func.coalesce(func.sum(NetworkSample.bytes_tx), 0),
+                    func.coalesce(func.sum(NetworkSample.packets_rx), 0),
+                    func.coalesce(func.sum(NetworkSample.packets_tx), 0),
+                ).where(NetworkSample.timestamp >= cutoff)
+            ).first()
+
+            top = session.execute(
+                select(
+                    NetworkSample.container_name,
+                    func.coalesce(func.sum(NetworkSample.bytes_rx), 0).label("rx"),
+                    func.coalesce(func.sum(NetworkSample.bytes_tx), 0).label("tx"),
+                )
+                .where(NetworkSample.timestamp >= cutoff)
+                .group_by(NetworkSample.container_name)
+                .order_by(
+                    (
+                        func.coalesce(func.sum(NetworkSample.bytes_rx), 0)
+                        + func.coalesce(func.sum(NetworkSample.bytes_tx), 0)
+                    ).desc()
+                )
+                .limit(5)
+            ).all()
+
+            return {
+                "window_hours": int(hours),
+                "bytes_rx": int(totals[0] or 0),
+                "bytes_tx": int(totals[1] or 0),
+                "packets_rx": int(totals[2] or 0),
+                "packets_tx": int(totals[3] or 0),
+                "top_containers": [
+                    {"container": str(name), "bytes_rx": int(rx), "bytes_tx": int(tx)}
+                    for name, rx, tx in top
+                ],
+            }
 
     # ------------------------------------------------------------------
     # Filesystem snapshots

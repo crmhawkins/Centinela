@@ -471,6 +471,8 @@ class DockerEventMonitor:
         if not cmd:
             cmd = "<unknown>"
 
+        cmd_base = cmd.split()[0] if cmd else "unknown"
+
         # Skip exec commands issued by Centinela itself (e.g. stat for FS checks)
         for own_prefix in _CENTINELA_OWN_EXEC_PREFIXES:
             if cmd.startswith(own_prefix):
@@ -479,6 +481,21 @@ class DockerEventMonitor:
                     container_name, cmd,
                 )
                 return
+
+        # Heuristic de "ruido": muchos stacks hacen curl hacia localhost para
+        # healthchecks / readiness. Esto suele ser repetitivo y genera ruido
+        # (incidencias masivas) si se deduplica por exec_id.
+        if cmd_base in ("curl", "wget") and (
+            "http://127.0.0.1" in cmd
+            or "http://localhost" in cmd
+        ):
+            logger.debug(
+                "Ignoring noisy %s to localhost: container=%s cmd=%r",
+                cmd_base,
+                container_name,
+                cmd,
+            )
+            return
 
         logger.warning(
             "DOCKER EXEC detected: container=%s exec_id=%s cmd=%r project=%s",
@@ -500,15 +517,25 @@ class DockerEventMonitor:
         if extra_severity_info:
             evidence["classification"] = extra_severity_info
 
+        # Context suspicious (p.ej. curl) suele ser más frecuente/ruidoso que
+        # las detecciones "always" o "project". Ajustamos severidad para
+        # reducir impactos sin perder señal.
+        severity = "high"
+        # Context suspicious (e.g. curl) tends to be much noisier in real-world
+        # stacks; we downgrade it so it doesn't flood the incident workflow.
+        if extra_severity_info and extra_severity_info.startswith("context_suspicious"):
+            severity = "medium"
+
         await self._alert_manager.raise_alert(
             project=project,
             container_name=container_name,
             container_id=container_id,
             alert_type="DOCKER_EVENT_EXEC",
-            severity="high",
-            rule=f"exec_in_container:{cmd.split()[0] if cmd else 'unknown'}",
+            severity=severity,
+            rule=f"exec_in_container:{cmd_base if cmd_base else 'unknown'}",
             evidence=evidence,
-            dedup_extra=exec_id[:12] if exec_id else cmd[:30],
+            # Deduplicación estable: evita spam cuando cada exec tiene exec_id distinto.
+            dedup_extra=extra_severity_info or cmd_base,
         )
 
         # Fire exec callbacks (e.g. trigger immediate process scan)
