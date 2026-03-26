@@ -501,14 +501,28 @@ def create_web_app() -> FastAPI:
             logging.getLogger("centinela.web").error("Container incident summary error: %s", exc)
 
         for row in containers:
-            row.setdefault("cpu_pct", 0.0)
-            row.setdefault("mem_pct", 0.0)
-            row.setdefault("mem_usage_human", "—")
-            row.setdefault("mem_limit_human", "—")
-            row.setdefault("disk_rw_human", "—")
-            row.setdefault("net_rx_human", "—")
-            row.setdefault("net_tx_human", "—")
-            stats = by_container.get(row["name"], {})
+            container_name = str(row.get("name") or "unknown")
+            row["name"] = container_name
+            row["id"] = str(row.get("id") or "—")
+            row["status"] = str(row.get("status") or "unknown")
+            row["image"] = str(row.get("image") or "unknown")
+
+            try:
+                row["cpu_pct"] = float(row.get("cpu_pct") or 0.0)
+            except (TypeError, ValueError):
+                row["cpu_pct"] = 0.0
+            try:
+                row["mem_pct"] = float(row.get("mem_pct") or 0.0)
+            except (TypeError, ValueError):
+                row["mem_pct"] = 0.0
+
+            row["mem_usage_human"] = row.get("mem_usage_human") or "—"
+            row["mem_limit_human"] = row.get("mem_limit_human") or "—"
+            row["disk_rw_human"] = row.get("disk_rw_human") or "—"
+            row["net_rx_human"] = row.get("net_rx_human") or "—"
+            row["net_tx_human"] = row.get("net_tx_human") or "—"
+
+            stats = by_container.get(container_name, {})
             row["inc_total"] = stats.get("total", 0)
             row["inc_open"] = stats.get("open", 0)
             row["inc_critical"] = stats.get("critical", 0)
