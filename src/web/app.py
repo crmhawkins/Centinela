@@ -107,11 +107,10 @@ def _collect_container_runtime_metrics() -> list:
             except Exception:
                 pass
 
-            try:
-                details = client.api.inspect_container(container.id, size=True)
-                disk_rw = details.get("SizeRw")
-            except Exception:
-                pass
+            # NOTE: inspect_container(..., size=True) can be very expensive on hosts
+            # with many containers/layers and may block the dashboard route.
+            # We keep disk as unavailable by default to preserve responsiveness.
+            disk_rw = None
 
             rows.append({
                 "name": name,
@@ -380,7 +379,17 @@ def create_web_app() -> FastAPI:
         since_7d = now - timedelta(days=7)
 
         try:
-            containers = _collect_container_runtime_metrics()
+            # Docker SDK calls are blocking; run off the event loop and cap wait time.
+            containers = await asyncio.wait_for(
+                asyncio.to_thread(_collect_container_runtime_metrics),
+                timeout=8.0,
+            )
+        except asyncio.TimeoutError:
+            import logging
+            logging.getLogger("centinela.web").warning(
+                "Container metrics timeout (>8s). Returning empty metrics snapshot."
+            )
+            containers = []
         except Exception as exc:
             import logging
             logging.getLogger("centinela.web").error("Container metrics error: %s", exc)
