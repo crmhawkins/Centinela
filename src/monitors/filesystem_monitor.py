@@ -435,7 +435,7 @@ class FilesystemMonitor:
         # --- Upload directory: new PHP / script file ---
         if watch_type == WATCH_TYPE_UPLOADS and action == "created":
             if has_suspicious_extension(filename, FORBIDDEN_UPLOAD_EXTENSIONS):
-                logger.warning(
+                logger.alert(
                     "PHP/script file created in uploads: %s (container %s)",
                     src_path, container_name,
                 )
@@ -468,7 +468,7 @@ class FilesystemMonitor:
                 )
                 return
 
-            logger.warning(
+            logger.alert(
                 "Critical file %s outside deployment window: %s (container %s)",
                 action, src_path, container_name,
             )
@@ -643,7 +643,7 @@ class FilesystemMonitor:
                     "owner": owner,
                     "reason": "File metadata changed outside deployment window",
                 }
-                logger.warning(
+                logger.alert(
                     "Critical file changed: %s in %s (mtime=%s, perm=%s)",
                     full_path, container_name, mtime_str, perm_octal,
                 )
@@ -669,7 +669,7 @@ class FilesystemMonitor:
                         f"(permissions={perm_octal})"
                     ),
                 }
-                logger.warning(
+                logger.alert(
                     "World-readable sensitive file: %s in %s (perm=%s)",
                     full_path, container_name, perm_octal,
                 )

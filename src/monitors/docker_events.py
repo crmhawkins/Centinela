@@ -443,7 +443,7 @@ class DockerEventMonitor:
             )
             return
 
-        logger.warning(
+        logger.alert(
             "DOCKER EXEC detected: container=%s exec_id=%s cmd=%r project=%s",
             container_name, exec_id[:12] if exec_id else "?",
             cmd, project.name if project else "unregistered",
@@ -598,7 +598,7 @@ class DockerEventMonitor:
         )
 
         if len(recent) >= _RESTART_BURST_COUNT:
-            logger.warning(
+            logger.alert(
                 "Restart BURST: container=%s count=%d in %ds",
                 container_name, len(recent), _RESTART_BURST_WINDOW,
             )
@@ -663,7 +663,7 @@ class DockerEventMonitor:
         )
 
         if matched_image:
-            logger.warning(
+            logger.alert(
                 "Suspicious unknown container started: name=%s image=%s",
                 container_name, image,
             )

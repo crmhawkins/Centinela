@@ -467,6 +467,27 @@ class NetworkMonitor:
                     dedup_extra=remote_ip,
                 )
 
+                # Burst detection: many new destinations in a short window = suspicious
+                new_count = await loop.run_in_executor(
+                    None, self._repo.count_new_destinations_in_window, container_name, 60
+                )
+                if new_count >= 10:
+                    await self._alert_manager.raise_alert(
+                        project=project,
+                        container_name=container_name,
+                        container_id="",
+                        alert_type="NETWORK_NEW_DEST_BURST",
+                        severity="high",
+                        rule=f"new_destinations_burst:{new_count}_in_60min",
+                        evidence={
+                            "container": container_name,
+                            "new_destinations_count": new_count,
+                            "window_minutes": 60,
+                            "latest_destination": remote_ip,
+                        },
+                        dedup_extra=f"burst_60min",
+                    )
+
     # ------------------------------------------------------------------
     # Pruning
     # ------------------------------------------------------------------

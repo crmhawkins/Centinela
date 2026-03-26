@@ -9,14 +9,15 @@ CENTINELA es un sistema de monitorización de seguridad diseñado para correr ju
 1. [Arquitectura general](#1-arquitectura-general)
 2. [Requisitos previos](#2-requisitos-previos)
 3. [Instalación y despliegue](#3-instalación-y-despliegue)
-4. [Guía de configuración](#4-guía-de-configuración)
-5. [Configuración específica para Coolify](#5-configuración-específica-para-coolify)
-6. [Cómo funcionan las alertas](#6-cómo-funcionan-las-alertas)
-7. [Gestión de la base de datos](#7-gestión-de-la-base-de-datos)
-8. [Archivos de log](#8-archivos-de-log)
-9. [Solución de problemas](#9-solución-de-problemas)
-10. [Hardening de seguridad](#10-hardening-de-seguridad)
-11. [Hoja de ruta](#11-hoja-de-ruta)
+4. [Requisitos críticos en producción (Linux)](#4-️-requisitos-críticos-en-producción-linux)
+5. [Guía de configuración](#5-guía-de-configuración)
+6. [Configuración específica para Coolify](#6-configuración-específica-para-coolify)
+7. [Cómo funcionan las alertas](#7-cómo-funcionan-las-alertas)
+8. [Gestión de la base de datos](#8-gestión-de-la-base-de-datos)
+9. [Archivos de log](#9-archivos-de-log)
+10. [Solución de problemas](#10-solución-de-problemas)
+11. [Hardening de seguridad](#11-hardening-de-seguridad)
+12. [Hoja de ruta](#12-hoja-de-ruta)
 
 ---
 
@@ -212,7 +213,66 @@ docker compose up -d
 
 ---
 
-## 4. Guía de configuración
+## 4. ⚠️ Requisitos críticos en producción (Linux)
+
+### 1. Límite de inotify watchers
+
+Centinela usa inotify para monitorizar el filesystem de los contenedores en tiempo real.
+Linux tiene un límite global de watchers. Con muchos proyectos, este límite puede agotarse,
+provocando que otras aplicaciones del servidor (incluido Coolify) fallen silenciosamente.
+
+**Verificar el límite actual:**
+```bash
+cat /proc/sys/fs/inotify/max_user_watches
+# Valor típico: 8192 — insuficiente para producción
+```
+
+**Aumentar el límite de forma permanente:**
+```bash
+echo "fs.inotify.max_user_watches = 524288" >> /etc/sysctl.conf
+echo "fs.inotify.max_instances = 512" >> /etc/sysctl.conf
+sysctl -p
+```
+
+**Regla general:** reservar ~10 watches por proyecto (7 rutas críticas + margen).
+Para 100 proyectos: mínimo 1000 watches. El valor 524288 es más que suficiente.
+
+### 2. Docker socket
+
+En producción Linux, Centinela necesita acceso de **escritura** al socket Docker
+para poder ejecutar `docker exec` en los chequeos de filesystem:
+
+```yaml
+# docker-compose.yml
+volumes:
+  - /var/run/docker.sock:/var/run/docker.sock:rw  # necesario para docker exec
+```
+
+Alternativa más segura con capabilities específicas en lugar de `privileged: true`:
+```yaml
+cap_add:
+  - SYS_PTRACE
+  - DAC_READ_SEARCH
+cap_drop:
+  - ALL
+security_opt:
+  - no-new-privileges:true
+privileged: false
+```
+
+### 3. Variables de entorno recomendadas
+
+```bash
+CENTINELA_WEB_USER=admin          # usuario del panel web
+CENTINELA_WEB_PASS=tu_password    # contraseña del panel web (cambiar obligatoriamente)
+CENTINELA_WEB_PORT=8080           # puerto del panel (cambiar si hay conflicto)
+TZ=Europe/Madrid                   # zona horaria
+PYTHONUTF8=1                       # encoding correcto en Linux también
+```
+
+---
+
+## 5. Guía de configuración
 
 ### Estructura de ficheros
 
@@ -311,7 +371,7 @@ Los eventos de Docker (exec, restart) **no** se suprimen nunca, incluso en venta
 
 ---
 
-## 5. Configuración específica para Coolify
+## 6. Configuración específica para Coolify
 
 [Coolify](https://coolify.io) es una plataforma PaaS self-hosted que gestiona aplicaciones en Docker. CENTINELA se integra perfectamente con Coolify.
 
@@ -383,7 +443,7 @@ networks:
 
 ---
 
-## 6. Cómo funcionan las alertas
+## 7. Cómo funcionan las alertas
 
 ### Tipos de alertas
 
@@ -470,7 +530,7 @@ El payload enviado es el mismo JSON que para otros webhooks.
 
 ---
 
-## 7. Gestión de la base de datos
+## 8. Gestión de la base de datos
 
 ### SQLite (por defecto)
 
@@ -566,7 +626,7 @@ sqlite3 /ruta/a/centinela/data/centinela.db \
 
 ---
 
-## 8. Archivos de log
+## 9. Archivos de log
 
 Los logs de CENTINELA se escriben en `./logs/` en el host (montado en `/app/logs` dentro del contenedor).
 
@@ -633,7 +693,7 @@ docker compose up -d
 
 ---
 
-## 9. Solución de problemas
+## 10. Solución de problemas
 
 ### CENTINELA no arranca
 
@@ -809,7 +869,7 @@ grep "FILESYSTEM" logs/incidents.log | \
 
 ---
 
-## 10. Hardening de seguridad
+## 11. Hardening de seguridad
 
 ### El paradox del centinela privilegiado
 
@@ -915,7 +975,7 @@ Los propios logs de CENTINELA son una superficie de ataque potencial. Asegúrate
 
 ---
 
-## 11. Hoja de ruta
+## 12. Hoja de ruta
 
 ### v1.1 – Mejoras de detección
 - [ ] Integración con ClamAV para escaneo de ficheros subidos

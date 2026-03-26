@@ -420,7 +420,7 @@ class ProcessMonitor:
 
         rule = f"suspicious_process:{matched_pattern}"
 
-        logger.warning(
+        logger.alert(
             "Suspicious process: container=%s pid=%s user=%s pattern=%r cmd=%r project=%s",
             container_name, pid, user, matched_pattern, cmd[:120],
             project.name if project else "unregistered",

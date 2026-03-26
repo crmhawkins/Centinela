@@ -11,7 +11,7 @@ host_root: ""   # en Windows directo, sin /host prefix
 monitoring:
   network_sample_interval: 15
   process_check_interval: 10
-  security_audit_interval: 30
+  security_audit_interval: 60
   fs_permission_check_interval: 60
 
 default_alerts:

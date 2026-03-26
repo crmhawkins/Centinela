@@ -2,6 +2,7 @@
 CENTINELA – Web Dashboard
 FastAPI application providing a read-only dashboard and incident management UI.
 """
+import base64
 import json
 import os
 import sys
@@ -10,10 +11,11 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import create_engine, func, desc
 from sqlalchemy.orm import sessionmaker, Session
+from starlette.middleware.base import BaseHTTPMiddleware
 
 # Ensure src/ is on the path so we can import database.models
 _SRC_DIR = Path(__file__).resolve().parent.parent
@@ -58,8 +60,58 @@ def _get_db_session(db_url: str) -> Session:
 # App factory
 # ---------------------------------------------------------------------------
 
+def _check_auth(request: Request) -> bool:
+    """Return True if the request carries valid Basic Auth credentials."""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Basic "):
+        return False
+    try:
+        decoded = base64.b64decode(auth_header[6:]).decode("utf-8")
+        username, _, password = decoded.partition(":")
+    except Exception:
+        return False
+    _user = os.environ.get("CENTINELA_WEB_USER", "admin")
+    _pass = os.environ.get("CENTINELA_WEB_PASS", "centinela")
+    return username == _user and password == _pass
+
+
+def _auth_enabled() -> bool:
+    """Return False when auth is explicitly disabled via environment variables."""
+    if os.environ.get("CENTINELA_WEB_AUTH", "").lower() == "false":
+        return False
+    _user = os.environ.get("CENTINELA_WEB_USER", "admin")
+    _pass = os.environ.get("CENTINELA_WEB_PASS", "centinela")
+    if _user == "" and _pass == "":
+        return False
+    return True
+
+
+class BasicAuthMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        if not _auth_enabled():
+            return await call_next(request)
+        # Exempt /health from authentication
+        if request.url.path == "/health":
+            return await call_next(request)
+        if not _check_auth(request):
+            return Response(
+                status_code=401,
+                headers={"WWW-Authenticate": 'Basic realm="CENTINELA"'},
+            )
+        return await call_next(request)
+
+
 def create_web_app() -> FastAPI:
     app = FastAPI(title="CENTINELA Dashboard", docs_url=None, redoc_url=None)
+
+    app.add_middleware(BasicAuthMiddleware)
+
+    # ------------------------------------------------------------------
+    # GET /health — Health check (exempt from auth)
+    # ------------------------------------------------------------------
+    @app.get("/health")
+    async def health():
+        return {"status": "ok"}
 
     # ------------------------------------------------------------------
     # GET / — Dashboard

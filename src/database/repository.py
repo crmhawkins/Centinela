@@ -182,6 +182,30 @@ class IncidentRepository:
             session.commit()
             return result.rowcount
 
+    def prune_closed_incidents(self, older_than_days: int = 90) -> int:
+        """Delete closed incidents older than N days. Returns deleted count."""
+        cutoff = _utcnow() - timedelta(days=older_than_days)
+        with self._Session() as session:
+            result = session.execute(
+                delete(Incident)
+                .where(Incident.status == "closed")
+                .where(Incident.timestamp < cutoff)
+            )
+            session.commit()
+            return result.rowcount
+
+    def count_new_destinations_in_window(
+        self, container_name: str, window_minutes: int = 60
+    ) -> int:
+        """Count destinations first seen within the last window_minutes."""
+        cutoff = _utcnow() - timedelta(minutes=window_minutes)
+        with self._Session() as session:
+            return session.scalar(
+                select(func.count(NetworkBaseline.id))
+                .where(NetworkBaseline.container_name == container_name)
+                .where(NetworkBaseline.first_seen >= cutoff)
+            ) or 0
+
     # ------------------------------------------------------------------
     # Filesystem snapshots
     # ------------------------------------------------------------------

@@ -23,6 +23,7 @@ from monitors.process_monitor import ProcessMonitor
 from monitors.network_monitor import NetworkMonitor
 from monitors.filesystem_monitor import FilesystemMonitor
 from monitors.security_audit import SecurityAuditMonitor
+from monitors.self_integrity import SelfIntegrityMonitor
 from logging_manager.logger import setup_logging
 from web.app import create_web_app, configure as configure_web
 
@@ -113,6 +114,32 @@ async def _run_web_server() -> None:
     except asyncio.CancelledError:
         server.should_exit = True
         raise
+
+
+async def _cleanup_loop(repo: IncidentRepository) -> None:
+    """
+    Periodic maintenance: prune old network samples and closed incidents.
+    Runs once at startup (after a short delay) then every 24 hours.
+    """
+    await asyncio.sleep(300)  # wait 5 min after startup before first run
+    while True:
+        try:
+            loop = asyncio.get_running_loop()
+            deleted_samples = await loop.run_in_executor(
+                None, repo.prune_network_samples, 336  # 14 days
+            )
+            deleted_incidents = await loop.run_in_executor(
+                None, repo.prune_closed_incidents, 90  # 90 days
+            )
+            logger.info(
+                "DB cleanup: removed %d old network samples, %d closed incidents.",
+                deleted_samples, deleted_incidents,
+            )
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            logger.warning("DB cleanup error: %s", exc)
+        await asyncio.sleep(86400)  # run every 24h
 
 
 async def main() -> None:
@@ -209,6 +236,11 @@ async def main() -> None:
         docker_client=docker_client,
     )
 
+    self_integrity_monitor = SelfIntegrityMonitor(
+        config=config,
+        alert_manager=alert_manager,
+    )
+
     # ------------------------------------------------------------------ #
     # 6. Wire monitors together via DockerEventMonitor callbacks
     # ------------------------------------------------------------------ #
@@ -283,7 +315,9 @@ async def main() -> None:
         asyncio.create_task(network_monitor.run(), name="network-monitor"),
         asyncio.create_task(fs_monitor.run(), name="filesystem-monitor"),
         asyncio.create_task(security_monitor.run(), name="security-audit"),
+        asyncio.create_task(self_integrity_monitor.run(), name="self-integrity"),
         asyncio.create_task(_run_web_server(), name="web-server"),
+        asyncio.create_task(_cleanup_loop(repository), name="db-cleanup"),
     ]
 
     # ------------------------------------------------------------------ #

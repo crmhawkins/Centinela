@@ -23,7 +23,7 @@ Checks performed (via container.attrs / docker inspect):
 
 import asyncio
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 import docker
 import docker.errors
@@ -94,6 +94,10 @@ class SecurityAuditMonitor:
         self._registry = registry
         self._alert_manager = alert_manager
         self._docker = docker_client
+
+        # Dedup: tracks the set of finding rules seen in the last audit cycle
+        # per container, so we only log/alert when findings actually change.
+        self._last_findings: Dict[str, Set[str]] = {}
 
     # ------------------------------------------------------------------
     # Main loop
@@ -198,7 +202,20 @@ class SecurityAuditMonitor:
 
         if not findings:
             logger.debug("Security audit passed for container %s.", container_name)
+            self._last_findings[container_name] = set()
             return
+
+        current_rules: Set[str] = {f["rule"] for f in findings}
+        previous_rules: Set[str] = self._last_findings.get(container_name, None)
+
+        if previous_rules is not None and current_rules == previous_rules:
+            logger.debug(
+                "Security audit: no change in findings for container %s (%d finding(s)).",
+                container_name, len(findings),
+            )
+            return
+
+        self._last_findings[container_name] = current_rules
 
         logger.info(
             "Security audit found %d finding(s) for container %s.",
@@ -207,10 +224,22 @@ class SecurityAuditMonitor:
         )
 
         for finding in findings:
+            severity = finding["severity"]
+            rule = finding["rule"]
+            if severity in ("high", "critical"):
+                logger.alert(
+                    "Security audit finding [%s]: %s (container=%s)",
+                    severity.upper(), rule, container_name,
+                )
+            else:
+                logger.warning(
+                    "Security audit finding [%s]: %s (container=%s)",
+                    severity.upper(), rule, container_name,
+                )
             evidence = {
                 "container": container_name,
-                "rule": finding["rule"],
-                "severity": finding["severity"],
+                "rule": rule,
+                "severity": severity,
                 "evidence": finding["evidence"],
             }
             await self._alert_manager.raise_alert(
@@ -218,10 +247,10 @@ class SecurityAuditMonitor:
                 container_name=container_name,
                 container_id=container_id,
                 alert_type="SECURITY_AUDIT",
-                severity=finding["severity"],
-                rule=finding["rule"],
+                severity=severity,
+                rule=rule,
                 evidence=evidence,
-                dedup_extra=finding["rule"],
+                dedup_extra=rule,
             )
 
     # ------------------------------------------------------------------

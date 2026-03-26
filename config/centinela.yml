@@ -210,3 +210,12 @@ filesystem:
   # Minimum permissions considered "too open" on sensitive files (octal)
   # Files world-writable (0o002 bit set) trigger a warning.
   world_writable_alert: true
+
+# ---------------------------------------------------------------------------
+# Web dashboard
+# ---------------------------------------------------------------------------
+web:
+  port: 8080
+  # Set CENTINELA_WEB_AUTH=false to disable (development only)
+  # Set CENTINELA_WEB_USER and CENTINELA_WEB_PASS env vars for credentials
+  auth_enabled: true
