@@ -22,7 +22,7 @@ import logging
 import time
 from collections import defaultdict, deque
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Deque, Dict, Optional
+from typing import Any, Coroutine, Deque, Dict, Optional
 
 import docker
 import docker.errors
@@ -39,6 +39,12 @@ logger = logging.getLogger("centinela.monitors.docker_events")
 
 # Maximum events buffered before the consumer catches up
 _QUEUE_MAX = 2048
+
+# Hard cap for concurrent per-event handlers.
+_MAX_IN_FLIGHT_EVENT_TASKS = 64
+
+# Hard cap for concurrent callback tasks spawned by handlers.
+_MAX_IN_FLIGHT_CALLBACK_TASKS = 128
 
 # Reconnect back-off parameters (seconds)
 _BACKOFF_INITIAL = 2.0
@@ -89,11 +95,13 @@ class DockerEventMonitor:
         config: GlobalConfig,
         registry: ProjectRegistry,
         alert_manager: AlertManager,
+        docker_client: docker.DockerClient,
         executor: Optional[ThreadPoolExecutor] = None,
     ) -> None:
         self._config = config
         self._registry = registry
         self._alert_manager = alert_manager
+        self._docker = docker_client
         self._executor = executor or ThreadPoolExecutor(
             max_workers=1, thread_name_prefix="centinela-docker-events"
         )
@@ -119,6 +127,11 @@ class DockerEventMonitor:
         self._exec_callbacks: list = []    # called with (container_name: str)
         self._start_callbacks: list = []   # called with (container_name, container_id, project)
         self._stop_callbacks: list = []    # called with (container_name: str)
+
+        # Bounded concurrency for event and callback execution.
+        self._event_sem = asyncio.Semaphore(_MAX_IN_FLIGHT_EVENT_TASKS)
+        self._callback_sem = asyncio.Semaphore(_MAX_IN_FLIGHT_CALLBACK_TASKS)
+        self._active_tasks: set[asyncio.Task] = set()
 
     # ------------------------------------------------------------------
     # Callback registration (called from main.py after instantiation)
@@ -204,6 +217,7 @@ class DockerEventMonitor:
             await asyncio.sleep(backoff)
             backoff = min(backoff * _BACKOFF_FACTOR, _BACKOFF_MAX)
 
+        await self._drain_active_tasks(timeout_seconds=5.0)
         logger.info("DockerEventMonitor stopped.")
 
     def stop(self) -> None:
@@ -238,13 +252,14 @@ class DockerEventMonitor:
             except Exception as e:
                 logger.warning("DockerEventMonitor: could not enqueue event: %s", e)
 
+        stream = None
         try:
-            client = docker.from_env()
             logger.debug("DockerEventMonitor: connected to Docker daemon.")
-            for raw_event in client.events(
+            stream = self._docker.events(
                 filters={"type": "container"},
                 decode=True,
-            ):
+            )
+            for raw_event in stream:
                 if self._stop_event.is_set():
                     break
                 if raw_event:
@@ -258,6 +273,11 @@ class DockerEventMonitor:
                 exc, exc_info=True,
             )
         finally:
+            try:
+                if stream is not None:
+                    stream.close()
+            except Exception:
+                pass
             # Push sentinel to wake up the async consumer
             put(None)
 
@@ -294,8 +314,8 @@ class DockerEventMonitor:
                 # End-of-stream sentinel
                 return
 
-            # Dispatch asynchronously without blocking the drain loop
-            asyncio.ensure_future(self._handle_event(event))
+            # Dispatch asynchronously without blocking the drain loop.
+            self._schedule_task(self._bounded_handle_event(event))
 
     # ------------------------------------------------------------------
     # Event dispatcher
@@ -384,6 +404,36 @@ class DockerEventMonitor:
                 event.get("Action"), exc, exc_info=True,
             )
 
+    async def _bounded_handle_event(self, event: Dict[str, Any]) -> None:
+        """Run one event handler under the monitor's concurrency cap."""
+        async with self._event_sem:
+            await self._handle_event(event)
+
+    async def _run_callback(self, callback_coro) -> None:
+        """Run one callback under a dedicated callback semaphore."""
+        async with self._callback_sem:
+            await callback_coro
+
+    def _schedule_task(self, coro: Coroutine[Any, Any, Any]) -> None:
+        """
+        Schedule a coroutine and track it so we can await graceful shutdown.
+        """
+        task = asyncio.create_task(coro)
+        self._active_tasks.add(task)
+        task.add_done_callback(self._active_tasks.discard)
+
+    async def _drain_active_tasks(self, timeout_seconds: float = 5.0) -> None:
+        """Wait briefly for in-flight event/callback tasks to finish."""
+        if not self._active_tasks:
+            return
+        pending = list(self._active_tasks)
+        done, not_done = await asyncio.wait(pending, timeout=timeout_seconds)
+        if not_done:
+            logger.warning(
+                "DockerEventMonitor shutdown with %d in-flight task(s) still pending.",
+                len(not_done),
+            )
+
     # ------------------------------------------------------------------
     # Specific event handlers
     # ------------------------------------------------------------------
@@ -463,7 +513,7 @@ class DockerEventMonitor:
 
         # Fire exec callbacks (e.g. trigger immediate process scan)
         for cb in self._exec_callbacks:
-            asyncio.ensure_future(cb(container_name))
+            self._schedule_task(self._run_callback(cb(container_name)))
 
     async def _handle_die(
         self,
@@ -517,7 +567,7 @@ class DockerEventMonitor:
 
         # Fire stop callbacks (e.g. remove filesystem watchers)
         for cb in self._stop_callbacks:
-            asyncio.ensure_future(cb(container_name))
+            self._schedule_task(self._run_callback(cb(container_name)))
 
     async def _handle_oom(
         self,
@@ -631,7 +681,9 @@ class DockerEventMonitor:
             )
             # Fire start callbacks for known projects (FS watcher + security audit)
             for cb in self._start_callbacks:
-                asyncio.ensure_future(cb(container_name, container_id, project))
+                self._schedule_task(
+                    self._run_callback(cb(container_name, container_id, project))
+                )
             return  # Known project – no alert needed
 
         # Unknown container: check if the image is suspicious
@@ -687,8 +739,7 @@ class DockerEventMonitor:
         if not exec_id:
             return ""
         try:
-            client = docker.from_env()
-            info = client.api.exec_inspect(exec_id)
+            info = self._docker.api.exec_inspect(exec_id)
             cmd_list = info.get("ProcessConfig", {}).get("entrypoint", "")
             args = info.get("ProcessConfig", {}).get("arguments", [])
             if isinstance(args, list):

@@ -58,6 +58,9 @@ _PS_AUX_CMD_ALIAS = "CMD"          # some kernels use CMD
 # PID 1 is always the container's main process – never suspicious
 _MAIN_PID = "1"
 
+# Hard cap to avoid unbounded growth if many exec events happen at once.
+_IMMEDIATE_QUEUE_MAX = 2048
+
 
 class ProcessMonitor:
     """
@@ -84,7 +87,10 @@ class ProcessMonitor:
         self._docker = docker_client
 
         # Set of container names for which an immediate check was requested
-        self._immediate_queue: asyncio.Queue[str] = asyncio.Queue()
+        self._immediate_queue: asyncio.Queue[str] = asyncio.Queue(
+            maxsize=_IMMEDIATE_QUEUE_MAX
+        )
+        self._immediate_pending: Set[str] = set()
 
         # Track which containers we have already warned are not running
         # (to avoid log spam on stopped containers)
@@ -141,7 +147,10 @@ class ProcessMonitor:
             "ProcessMonitor: immediate check requested for %s", container_name
         )
         try:
+            if container_name in self._immediate_pending:
+                return
             self._immediate_queue.put_nowait(container_name)
+            self._immediate_pending.add(container_name)
         except asyncio.QueueFull:
             logger.warning(
                 "ProcessMonitor: immediate-check queue full, dropping %s",
@@ -230,6 +239,7 @@ class ProcessMonitor:
                     container_name, exc, exc_info=True,
                 )
             finally:
+                self._immediate_pending.discard(container_name)
                 self._immediate_queue.task_done()
 
     # ------------------------------------------------------------------

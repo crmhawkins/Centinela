@@ -155,6 +155,7 @@ async def main() -> None:
         config=config,
         registry=registry,
         alert_manager=alert_manager,
+        docker_client=docker_client,
     )
 
     # BUG FIX: ProcessMonitor.__init__ signature is (config, registry, alert_manager, docker_client)

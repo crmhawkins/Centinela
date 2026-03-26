@@ -1,4 +1,4 @@
-version: "3.9"
+name: centinela
 
 # ---------------------------------------------------------------------------
 # CENTINELA – Docker Compose deployment
@@ -15,9 +15,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    pull_policy: missing
     image: centinela:latest
     container_name: centinela
     restart: unless-stopped
+    init: true
 
     # -----------------------------------------------------------------------
     # Privileges
@@ -62,18 +64,15 @@ services:
       # - CENTINELA_LOG_LEVEL=DEBUG
 
     # -----------------------------------------------------------------------
-    # Resource limits
+    # Resource limits (Compose / non-swarm)
     # -----------------------------------------------------------------------
-    # Centinela is designed to be lightweight. These limits protect the host
-    # from runaway resource consumption if a bug causes a loop.
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 256M
-        reservations:
-          cpus: "0.1"
-          memory: 64M
+    cpus: 0.50
+    mem_limit: 256m
+    pids_limit: 256
+    ulimits:
+      nofile:
+        soft: 4096
+        hard: 8192
 
     # -----------------------------------------------------------------------
     # Log management
