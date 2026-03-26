@@ -110,6 +110,8 @@ def _load_project(raw: Dict, source_file: str) -> Optional[ProjectConfig]:
         deployment_windows=_load_deployment_windows(raw),
         network=_load_network_thresholds(raw),
         extra_suspicious_processes=raw.get("extra_suspicious_processes", []),
+        trusted_exec_patterns=raw.get("trusted_exec_patterns", []),
+        trusted_destinations=raw.get("trusted_destinations", ["localhost", "127.0.0.1", "::1", "0.0.0.0"]),
         monitor_filesystem=raw.get("monitor_filesystem", True),
         monitor_processes=raw.get("monitor_processes", True),
         monitor_network=raw.get("monitor_network", True),

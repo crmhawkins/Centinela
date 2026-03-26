@@ -129,6 +129,13 @@ class ProjectConfig:
     # Extra suspicious processes specific to this project
     extra_suspicious_processes: List[str] = field(default_factory=list)
 
+    # Commands to never flag as suspicious (health checks, deploy scripts, etc.)
+    trusted_exec_patterns: List[str] = field(default_factory=list)
+    # Trusted curl/wget destinations (substrings matched against full URL/host)
+    trusted_destinations: List[str] = field(default_factory=lambda: [
+        "localhost", "127.0.0.1", "::1", "0.0.0.0"
+    ])
+
     # Monitoring switches
     monitor_filesystem: bool = True
     monitor_processes: bool = True

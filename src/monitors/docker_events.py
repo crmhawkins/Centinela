@@ -114,6 +114,9 @@ class DockerEventMonitor:
         # Event loop reference captured in run() and used by _stream_events() thread
         self._loop: Optional[asyncio.AbstractEventLoop] = None
 
+        # Cache of container_name → healthcheck command string (auto-populated at runtime)
+        self._healthcheck_cache: Dict[str, str] = {}
+
         # Cross-monitor callbacks (async coroutine functions)
         # Registered via register_*_callback() from main.py
         self._exec_callbacks: list = []    # called with (container_name: str)
@@ -153,6 +156,16 @@ class DockerEventMonitor:
         backoff = _BACKOFF_INITIAL
         loop = asyncio.get_event_loop()
         self._loop = loop  # store for use in _stream_events() thread
+
+        # Load healthcheck configs for already-running containers
+        try:
+            import docker as _docker
+            _client = _docker.from_env()
+            for _c in _client.containers.list():
+                self._load_container_healthcheck(_c.id, _c.name)
+            _client.close()
+        except Exception as _e:
+            logger.debug("Could not pre-load healthchecks: %s", _e)
 
         logger.info("DockerEventMonitor starting.")
 
@@ -421,14 +434,14 @@ class DockerEventMonitor:
         if not cmd:
             cmd = "<unknown>"
 
-        # Skip exec commands issued by Centinela itself (e.g. stat for FS checks)
-        for own_prefix in _CENTINELA_OWN_EXEC_PREFIXES:
-            if cmd.startswith(own_prefix):
-                logger.debug(
-                    "Ignoring Centinela own exec: container=%s cmd=%r",
-                    container_name, cmd,
-                )
-                return
+        # Skip trusted exec commands (Centinela internals, healthchecks, patterns, destinations)
+        trusted, reason = self._is_trusted_exec(cmd, container_name, project)
+        if trusted:
+            logger.debug(
+                "Ignoring trusted exec: container=%s cmd=%r reason=%s",
+                container_name, cmd, reason,
+            )
+            return
 
         logger.warning(
             "DOCKER EXEC detected: container=%s exec_id=%s cmd=%r project=%s",
@@ -629,6 +642,11 @@ class DockerEventMonitor:
                 "Container started: name=%s image=%s project=%s",
                 container_name, image, project.name,
             )
+            # Load healthcheck config for this container asynchronously
+            loop = asyncio.get_event_loop()
+            loop.run_in_executor(
+                None, self._load_container_healthcheck, container_id, container_name
+            )
             # Fire start callbacks for known projects (FS watcher + security audit)
             for cb in self._start_callbacks:
                 asyncio.ensure_future(cb(container_name, container_id, project))
@@ -670,6 +688,103 @@ class DockerEventMonitor:
                 "Unknown container started (not monitored): name=%s image=%s",
                 container_name, image,
             )
+
+    # ------------------------------------------------------------------
+    # Helper: load container healthcheck command
+    # ------------------------------------------------------------------
+
+    def _load_container_healthcheck(
+        self, container_id: str, container_name: str
+    ) -> None:
+        """
+        Synchronously fetch and cache the healthcheck command for a container.
+
+        Reads ``container.attrs["Config"]["Healthcheck"]["Test"]``, which is a
+        list whose first element is "CMD" or "CMD-SHELL"; the actual command is
+        formed by joining elements at index 1 and beyond.
+
+        Results are stored in ``self._healthcheck_cache[container_name]``.
+        Silently ignores all exceptions (container may not exist yet, no
+        healthcheck configured, etc.).
+        """
+        try:
+            client = docker.from_env()
+            container = client.containers.get(container_id)
+            test = (
+                container.attrs.get("Config", {})
+                .get("Healthcheck", {})
+                .get("Test", [])
+            )
+            if isinstance(test, list) and len(test) > 1:
+                # Skip the first element ("CMD" / "CMD-SHELL")
+                healthcheck_cmd = " ".join(str(t) for t in test[1:])
+                self._healthcheck_cache[container_name] = healthcheck_cmd
+                logger.debug(
+                    "Healthcheck cached: container=%s cmd=%r",
+                    container_name, healthcheck_cmd,
+                )
+            client.close()
+        except Exception as exc:
+            logger.debug(
+                "Could not load healthcheck for container=%s: %s",
+                container_name, exc,
+            )
+
+    # ------------------------------------------------------------------
+    # Helper: determine whether an exec command is trusted
+    # ------------------------------------------------------------------
+
+    def _is_trusted_exec(
+        self, cmd: str, container_name: str, project
+    ) -> tuple:
+        """
+        Return ``(True, reason)`` if the exec command should be ignored,
+        ``(False, "")`` otherwise.
+
+        Checks in order:
+        1. Centinela own execs (``_CENTINELA_OWN_EXEC_PREFIXES``)
+        2. Container healthcheck command cached in ``_healthcheck_cache``
+        3. Project ``trusted_exec_patterns`` (substring match)
+        4. curl/wget to a trusted destination
+        """
+        # 1. Centinela internal execs
+        for own_prefix in _CENTINELA_OWN_EXEC_PREFIXES:
+            if cmd.startswith(own_prefix):
+                return (True, "centinela-internal")
+
+        # 2. Container healthcheck
+        if container_name in self._healthcheck_cache:
+            cached_hc = self._healthcheck_cache[container_name]
+            if cached_hc and cached_hc in cmd:
+                return (True, "healthcheck")
+
+        # 3. Project trusted exec patterns
+        if project is not None:
+            for pattern in (project.trusted_exec_patterns or []):
+                if pattern in cmd:
+                    return (True, "trusted-pattern")
+
+        # 4. Trusted curl/wget destination
+        cmd_stripped = cmd.strip()
+        cmd_lower = cmd_stripped.lower()
+        if cmd_lower.startswith("curl") or cmd_lower.startswith("wget"):
+            # Collect trusted destinations from the project (or use the defaults)
+            _default_destinations = ["localhost", "127.0.0.1", "::1", "0.0.0.0"]
+            if project is not None:
+                destinations = list(project.trusted_destinations or _default_destinations)
+            else:
+                destinations = _default_destinations
+            # Extract all space-separated tokens that look like URL/host arguments
+            # (skip flag tokens that start with -)
+            tokens = cmd_stripped.split()
+            for token in tokens[1:]:
+                if token.startswith("-"):
+                    continue
+                for dest in destinations:
+                    if dest in token:
+                        return (True, "trusted-destination")
+
+        return (False, "")
 
     # ------------------------------------------------------------------
     # Helper: get exec command from Docker inspect

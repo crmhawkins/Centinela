@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Dashboard</h1>
+
+<!-- Last 24h severity counters -->
+<h2>Last 24 Hours</h2>
+<div class="stat-cards">
+  <div class="stat-card critical">
+    <span class="label">Critical</span>
+    <span class="count">{{ severity_24h.critical }}</span>
+  </div>
+  <div class="stat-card high">
+    <span class="label">High</span>
+    <span class="count">{{ severity_24h.high }}</span>
+  </div>
+  <div class="stat-card medium">
+    <span class="label">Medium</span>
+    <span class="count">{{ severity_24h.medium }}</span>
+  </div>
+  <div class="stat-card low">
+    <span class="label">Low</span>
+    <span class="count">{{ severity_24h.low }}</span>
+  </div>
+</div>
+
+<!-- Last 7 days summary -->
+<div class="card">
+  <h2>Last 7 Days — Severity Summary</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Severity</th>
+        <th>Incident Count</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="badge badge-critical">Critical</span></td>
+        <td>{{ severity_7d.critical }}</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-high">High</span></td>
+        <td>{{ severity_7d.high }}</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-medium">Medium</span></td>
+        <td>{{ severity_7d.medium }}</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-low">Low</span></td>
+        <td>{{ severity_7d.low }}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Top containers & top alert types -->
+<div class="two-col">
+  <div class="card">
+    <h2>Top 5 Containers (Last 7 Days)</h2>
+    {% if top_containers %}
+    <table>
+      <thead>
+        <tr>
+          <th>Container</th>
+          <th>Incidents</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for container_name, cnt in top_containers %}
+        <tr>
+          <td>{{ container_name }}</td>
+          <td>{{ cnt }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="empty-state">No data for the last 7 days.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>Top 5 Alert Types (Last 7 Days)</h2>
+    {% if top_alert_types %}
+    <table>
+      <thead>
+        <tr>
+          <th>Alert Type</th>
+          <th>Count</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for alert_type, cnt in top_alert_types %}
+        <tr>
+          <td>{{ alert_type }}</td>
+          <td>{{ cnt }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="empty-state">No data for the last 7 days.</p>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Recent incidents -->
+<div class="card">
+  <h2>Recent Incidents (Last 10)</h2>
+  {% if recent_incidents %}
+  <table>
+    <thead>
+      <tr>
+        <th>Time</th>
+        <th>Project</th>
+        <th>Container</th>
+        <th>Type</th>
+        <th>Severity</th>
+        <th>Rule</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for inc in recent_incidents %}
+      <tr>
+        <td style="white-space:nowrap; color:#7080a0;">
+          {{ inc.timestamp.strftime('%Y-%m-%d %H:%M:%S') if inc.timestamp else '—' }}
+        </td>
+        <td>{{ inc.project }}</td>
+        <td>{{ inc.container_name }}</td>
+        <td>{{ inc.alert_type }}</td>
+        <td><span class="badge badge-{{ inc.severity }}">{{ inc.severity }}</span></td>
+        <td>{{ inc.rule }}</td>
+        <td>{{ inc.status }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-state">No incidents recorded yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -101,6 +101,20 @@ extra_suspicious_processes:
   - composer         # Dependency management – dangerous if triggered remotely
 
 # ---------------------------------------------------------------------------
+# Trusted exec patterns (Coolify health checks, deploy scripts)
+# ---------------------------------------------------------------------------
+# Commands that are safe to ignore (Coolify health checks, deploy scripts)
+trusted_exec_patterns:
+  - "curl -f http://localhost/health"
+  - "php artisan schedule:run"
+  - "php artisan queue:work"
+
+# Destinations that curl/wget are allowed to contact (local health checks)
+trusted_destinations:
+  - "localhost"
+  - "127.0.0.1"
+
+# ---------------------------------------------------------------------------
 # Feature switches
 # ---------------------------------------------------------------------------
 monitor_filesystem: true

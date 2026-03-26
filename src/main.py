@@ -24,6 +24,7 @@ from monitors.network_monitor import NetworkMonitor
 from monitors.filesystem_monitor import FilesystemMonitor
 from monitors.security_audit import SecurityAuditMonitor
 from logging_manager.logger import setup_logging
+from web.app import create_web_app, configure as configure_web
 
 logger = logging.getLogger("centinela.main")
 
@@ -99,6 +100,21 @@ async def startup_audit(
     logger.info("Startup audit complete (%d containers inspected).", len(running_containers))
 
 
+async def _run_web_server() -> None:
+    import uvicorn
+    from web.app import create_web_app
+    web_port = int(os.environ.get("CENTINELA_WEB_PORT", "8080"))
+    app = create_web_app()
+    server_config = uvicorn.Config(app, host="0.0.0.0", port=web_port, log_level="warning")
+    server = uvicorn.Server(server_config)
+    logger.info("Web dashboard starting on port %d", web_port)
+    try:
+        await server.serve()
+    except asyncio.CancelledError:
+        server.should_exit = True
+        raise
+
+
 async def main() -> None:
     # ------------------------------------------------------------------ #
     # 1. Load configuration
@@ -132,6 +148,8 @@ async def main() -> None:
     repository = IncidentRepository(config.db_url)
     # BUG FIX: await repository.initialise() removed – DB is created in __init__, no async init needed
     logger.info("Incident repository initialised.")
+
+    configure_web(config.db_url)
 
     # BUG FIX: was AlertManager(config) – constructor requires (config, repo)
     alert_manager = AlertManager(config, repository)
@@ -265,6 +283,7 @@ async def main() -> None:
         asyncio.create_task(network_monitor.run(), name="network-monitor"),
         asyncio.create_task(fs_monitor.run(), name="filesystem-monitor"),
         asyncio.create_task(security_monitor.run(), name="security-audit"),
+        asyncio.create_task(_run_web_server(), name="web-server"),
     ]
 
     # ------------------------------------------------------------------ #

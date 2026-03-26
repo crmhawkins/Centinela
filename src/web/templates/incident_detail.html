@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="detail-header">
+  <h1>#{{ incident.id }} &mdash; {{ incident.rule }}</h1>
+  <span class="badge badge-{{ incident.severity }}">{{ incident.severity }}</span>
+</div>
+
+<!-- Metadata -->
+<div class="card">
+  <h2>Details</h2>
+  <table class="meta-table" style="width:auto;">
+    <tbody>
+      <tr>
+        <td>Timestamp</td>
+        <td>{{ incident.timestamp.strftime('%Y-%m-%d %H:%M:%S UTC') if incident.timestamp else '—' }}</td>
+      </tr>
+      <tr>
+        <td>Project</td>
+        <td>{{ incident.project }}</td>
+      </tr>
+      <tr>
+        <td>Container</td>
+        <td>{{ incident.container_name }}{% if incident.container_id %} <span style="color:#506080; font-size:0.8rem;">({{ incident.container_id[:12] }})</span>{% endif %}</td>
+      </tr>
+      <tr>
+        <td>Alert Type</td>
+        <td>{{ incident.alert_type }}</td>
+      </tr>
+      <tr>
+        <td>Rule</td>
+        <td>{{ incident.rule }}</td>
+      </tr>
+      <tr>
+        <td>Status</td>
+        <td>{{ incident.status }}</td>
+      </tr>
+      <tr>
+        <td>Alert Sent</td>
+        <td>{% if incident.alert_sent %}Yes{% else %}No{% endif %}</td>
+      </tr>
+      {% if incident.dedup_key %}
+      <tr>
+        <td>Dedup Key</td>
+        <td style="font-family: monospace; font-size:0.82rem; color:#7080a0;">{{ incident.dedup_key }}</td>
+      </tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Evidence -->
+<div class="card">
+  <h2>Evidence</h2>
+  <pre>{{ evidence_pretty }}</pre>
+</div>
+
+<!-- Status update form -->
+<div class="card">
+  <h2>Update Status</h2>
+  <form method="post" action="/incidents/{{ incident.id }}/status" class="status-form">
+    <select name="status">
+      <option value="new"      {% if incident.status == "new"      %}selected{% endif %}>New</option>
+      <option value="reviewed" {% if incident.status == "reviewed" %}selected{% endif %}>Reviewed</option>
+      <option value="closed"   {% if incident.status == "closed"   %}selected{% endif %}>Closed</option>
+    </select>
+    <button type="submit" class="btn btn-primary">Save</button>
+  </form>
+</div>
+
+<a href="/incidents" style="font-size:0.88rem;">&larr; Back to incidents</a>
+
+{% endblock %}

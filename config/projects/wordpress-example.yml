@@ -125,6 +125,20 @@ extra_suspicious_processes:
   - mysqldump     # Database dump – could indicate data exfiltration
 
 # ---------------------------------------------------------------------------
+# Trusted exec patterns (Coolify health checks, maintenance scripts)
+# ---------------------------------------------------------------------------
+# Commands that are safe to ignore (Coolify health checks, maintenance scripts)
+trusted_exec_patterns:
+  - "curl -f http://localhost/wp-login.php"
+  - "curl -f http://localhost/health"
+  - "php -r exit(0);"
+
+# Destinations that curl/wget are allowed to contact (local health checks)
+trusted_destinations:
+  - "localhost"
+  - "127.0.0.1"
+
+# ---------------------------------------------------------------------------
 # Feature switches
 # ---------------------------------------------------------------------------
 monitor_filesystem: true

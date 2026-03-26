@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Incidents</h1>
+
+<!-- Filter form -->
+<div class="card">
+  <form method="get" action="/incidents" class="filter-form">
+    <label>
+      Project
+      <input type="text" name="project" value="{{ project }}" placeholder="any">
+    </label>
+    <label>
+      Severity
+      <select name="severity">
+        <option value="" {% if not severity %}selected{% endif %}>Any</option>
+        <option value="critical" {% if severity == "critical" %}selected{% endif %}>Critical</option>
+        <option value="high"     {% if severity == "high"     %}selected{% endif %}>High</option>
+        <option value="medium"   {% if severity == "medium"   %}selected{% endif %}>Medium</option>
+        <option value="low"      {% if severity == "low"      %}selected{% endif %}>Low</option>
+      </select>
+    </label>
+    <label>
+      Status
+      <select name="status">
+        <option value="" {% if not status %}selected{% endif %}>Any</option>
+        <option value="new"      {% if status == "new"      %}selected{% endif %}>New</option>
+        <option value="reviewed" {% if status == "reviewed" %}selected{% endif %}>Reviewed</option>
+        <option value="closed"   {% if status == "closed"   %}selected{% endif %}>Closed</option>
+      </select>
+    </label>
+    <label>
+      Alert Type
+      <input type="text" name="alert_type" value="{{ alert_type }}" placeholder="any">
+    </label>
+    <button type="submit" class="btn btn-primary">Filter</button>
+    {% if active_filters %}
+    <a href="/incidents" class="btn" style="background:#2a2a50; color:#a0b0ff;">Clear</a>
+    {% endif %}
+  </form>
+
+  {% if active_filters %}
+  <div class="filter-tags">
+    {% for key, val in active_filters.items() %}
+    <span class="filter-tag">{{ key }}: {{ val }}</span>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <p style="color:#506080; font-size:0.82rem; margin-bottom:0.75rem;">
+    {{ total }} incident{{ 's' if total != 1 else '' }} found
+    &mdash; page {{ page }} of {{ total_pages }}
+  </p>
+
+  {% if incidents %}
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Time</th>
+        <th>Project</th>
+        <th>Container</th>
+        <th>Type</th>
+        <th>Severity</th>
+        <th>Rule</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for inc in incidents %}
+      <tr>
+        <td style="color:#506080;">#{{ inc.id }}</td>
+        <td style="white-space:nowrap; color:#7080a0;">
+          {{ inc.timestamp.strftime('%Y-%m-%d %H:%M:%S') if inc.timestamp else '—' }}
+        </td>
+        <td>{{ inc.project }}</td>
+        <td>{{ inc.container_name }}</td>
+        <td>{{ inc.alert_type }}</td>
+        <td><span class="badge badge-{{ inc.severity }}">{{ inc.severity }}</span></td>
+        <td style="max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+          {{ inc.rule }}
+        </td>
+        <td>{{ inc.status }}</td>
+        <td>
+          <a href="/incidents/{{ inc.id }}" class="btn btn-primary btn-sm">View</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-state">No incidents match the current filters.</p>
+  {% endif %}
+
+  <!-- Pagination -->
+  {% if total_pages > 1 %}
+  <div class="pagination">
+    {% set base_params = [] %}
+    {% if project    %}{% set _ = base_params.append('project='    ~ project)    %}{% endif %}
+    {% if severity   %}{% set _ = base_params.append('severity='   ~ severity)   %}{% endif %}
+    {% if status     %}{% set _ = base_params.append('status='     ~ status)     %}{% endif %}
+    {% if alert_type %}{% set _ = base_params.append('alert_type=' ~ alert_type) %}{% endif %}
+
+    {% if page > 1 %}
+    <a href="/incidents?{{ (base_params + ['page=' ~ (page - 1)]) | join('&') }}"
+       class="btn" style="background:#2a2a50; color:#a0b0ff;">&laquo; Previous</a>
+    {% else %}
+    <span style="opacity:0.3;">&laquo; Previous</span>
+    {% endif %}
+
+    <span>Page {{ page }} / {{ total_pages }}</span>
+
+    {% if page < total_pages %}
+    <a href="/incidents?{{ (base_params + ['page=' ~ (page + 1)]) | join('&') }}"
+       class="btn" style="background:#2a2a50; color:#a0b0ff;">Next &raquo;</a>
+    {% else %}
+    <span style="opacity:0.3;">Next &raquo;</span>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

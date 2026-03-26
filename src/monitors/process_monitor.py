@@ -353,6 +353,18 @@ class ProcessMonitor:
             )
 
             if suspicious:
+                # Before flagging curl/wget, check if it's contacting a trusted destination
+                if matched in ("curl", "wget"):
+                    _default_trusted = ["localhost", "127.0.0.1", "::1", "0.0.0.0"]
+                    trusted_dests = _default_trusted[:]
+                    if project is not None and hasattr(project, "trusted_destinations"):
+                        trusted_dests = list(project.trusted_destinations or _default_trusted)
+                    if any(dest in cmd for dest in trusted_dests):
+                        logger.debug(
+                            "Skipping trusted curl/wget: %s", cmd[:200]
+                        )
+                        continue
+
                 await self._emit_process_alert(
                     container_name=container_name,
                     container_id=container_id,
