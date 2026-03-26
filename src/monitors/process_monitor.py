@@ -61,6 +61,12 @@ _MAIN_PID = "1"
 # Hard cap to avoid unbounded growth if many exec events happen at once.
 _IMMEDIATE_QUEUE_MAX = 2048
 
+_BENIGN_HEALTHCHECK_TOKENS = (
+    "healthcheck",
+    "healthcheck.sh",
+    "docker-healthcheck",
+)
+
 
 class ProcessMonitor:
     """
@@ -354,6 +360,14 @@ class ProcessMonitor:
             if not cmd:
                 continue
 
+            if self._is_benign_process(container_name, cmd):
+                logger.debug(
+                    "ProcessMonitor: ignoring benign healthcheck process in %s: %r",
+                    container_name,
+                    cmd[:120],
+                )
+                continue
+
             # ---- Standard suspicious-process check --------------------
             suspicious, severity, matched = is_suspicious_process(
                 cmd,
@@ -592,6 +606,37 @@ class ProcessMonitor:
             if pattern.lower() in cmd_lower:
                 return pattern
         return None
+
+    @staticmethod
+    def _is_benign_process(container_name: str, cmd: str) -> bool:
+        """
+        Suppress common healthcheck process noise from orchestrators.
+        """
+        cmd_lower = cmd.lower().strip()
+        cmd_base = cmd_lower.split()[0].split("/")[-1] if cmd_lower else ""
+
+        if any(token in cmd_lower for token in _BENIGN_HEALTHCHECK_TOKENS):
+            return True
+
+        if cmd_base in ("curl", "wget") and (
+            "http://127.0.0.1" in cmd_lower
+            or "https://127.0.0.1" in cmd_lower
+            or "http://localhost" in cmd_lower
+            or "https://localhost" in cmd_lower
+        ):
+            return True
+
+        if cmd_base in ("sh", "bash") and (
+            "healthcheck" in cmd_lower
+            or "127.0.0.1" in cmd_lower
+            or "localhost" in cmd_lower
+        ):
+            return True
+
+        if container_name.startswith("coolify-") and cmd_base in ("sh", "bash"):
+            return True
+
+        return False
 
     # ------------------------------------------------------------------
     # Sleep helper (interruptible)

@@ -319,6 +319,7 @@ def _render_index_html() -> str:
                 <option value="">Todas</option><option value="low">low</option><option value="medium">medium</option><option value="high">high</option><option value="critical">critical</option>
               </select>
               <button onclick="refreshIncidents()" class="primary">Buscar</button>
+              <button onclick="purgeIncidentsHistory()" style="margin-left:auto;border-color:#5b1f2f;color:#ffb4c4;">Borrar histórico</button>
             </div>
             <div id="incidentsMeta" class="muted" style="margin-top:8px;"></div>
             <table style="margin-top:8px;">
@@ -507,6 +508,23 @@ def _render_index_html() -> str:
       async function updateStatus(id) {
         const status = $('status_' + id).value;
         try { await api('/api/incidents/' + id + '/status', 'POST', {status}); await loadIncidents(); } catch (e) { alert(String(e)); }
+      }
+      async function purgeIncidentsHistory() {
+        const ok1 = confirm('Esto borrará TODO el histórico de incidencias. Esta acción no se puede deshacer. ¿Continuar?');
+        if (!ok1) return;
+        const phrase = prompt('Escribe BORRAR HISTORICO para confirmar');
+        if ((phrase || '').trim() !== 'BORRAR HISTORICO') {
+          alert('Confirmación incorrecta. Operación cancelada.');
+          return;
+        }
+        try {
+          const resp = await api('/api/incidents/purge', 'POST', {confirm_text: phrase});
+          alert('Histórico borrado. Registros eliminados: ' + (resp.deleted || 0));
+          page = 1;
+          await Promise.all([loadIncidents(), refreshDashboard()]);
+        } catch (e) {
+          alert(String(e));
+        }
       }
       async function showEvidence(id) {
         try { const data = await api('/api/incidents/' + id); alert('Evidencia ID ' + id + '\\n\\n' + (data.evidence || '')); } catch (e) { alert(String(e)); }
@@ -796,6 +814,23 @@ def create_panel_app(
 
         await asyncio.get_running_loop().run_in_executor(None, _update)
         return JSONResponse({"ok": True})
+
+    @app.post("/api/incidents/purge")
+    async def api_purge_incidents(
+        payload: Dict[str, Any] = Body(...),
+        _: None = Depends(require_auth_dep),
+    ) -> JSONResponse:
+        confirm_text = str(payload.get("confirm_text", "")).strip()
+        if confirm_text != "BORRAR HISTORICO":
+            return JSONResponse(
+                {"error": "Confirmación inválida. Debe ser exactamente 'BORRAR HISTORICO'."},
+                status_code=400,
+            )
+
+        deleted = await asyncio.get_running_loop().run_in_executor(
+            None, repository.delete_all_incidents
+        )
+        return JSONResponse({"ok": True, "deleted": int(deleted)})
 
     @app.get("/api/config/overrides")
     async def api_get_overrides(_: None = Depends(require_auth_dep)) -> JSONResponse:

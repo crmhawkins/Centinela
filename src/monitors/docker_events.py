@@ -63,6 +63,13 @@ _CENTINELA_OWN_EXEC_PREFIXES = (
     "ps -aux",
 )
 
+# Common benign healthcheck keywords/patterns seen in orchestration stacks.
+_BENIGN_HEALTHCHECK_TOKENS = (
+    "healthcheck",
+    "healthcheck.sh",
+    "docker-healthcheck",
+)
+
 
 class DockerEventMonitor:
     """
@@ -472,6 +479,8 @@ class DockerEventMonitor:
             cmd = "<unknown>"
 
         cmd_base = cmd.split()[0] if cmd else "unknown"
+        cmd_lower = cmd.lower()
+        cmd_base_lower = cmd_base.lower().split("/")[-1]
 
         # Skip exec commands issued by Centinela itself (e.g. stat for FS checks)
         for own_prefix in _CENTINELA_OWN_EXEC_PREFIXES:
@@ -485,13 +494,9 @@ class DockerEventMonitor:
         # Heuristic de "ruido": muchos stacks hacen curl hacia localhost para
         # healthchecks / readiness. Esto suele ser repetitivo y genera ruido
         # (incidencias masivas) si se deduplica por exec_id.
-        if cmd_base in ("curl", "wget") and (
-            "http://127.0.0.1" in cmd
-            or "http://localhost" in cmd
-        ):
+        if self._is_benign_exec_command(container_name, cmd_lower, cmd_base_lower):
             logger.debug(
-                "Ignoring noisy %s to localhost: container=%s cmd=%r",
-                cmd_base,
+                "Ignoring benign healthcheck exec: container=%s cmd=%r",
                 container_name,
                 cmd,
             )
@@ -821,3 +826,39 @@ class DockerEventMonitor:
                 return f"context_suspicious:{pattern}"
 
         return None
+
+    @staticmethod
+    def _is_benign_exec_command(
+        container_name: str,
+        cmd_lower: str,
+        cmd_base_lower: str,
+    ) -> bool:
+        """
+        Best-effort suppression of high-frequency healthcheck noise.
+        """
+        # Direct healthcheck markers
+        if any(token in cmd_lower for token in _BENIGN_HEALTHCHECK_TOKENS):
+            return True
+
+        # Localhost checks are extremely common and usually benign.
+        if cmd_base_lower in ("curl", "wget") and (
+            "http://127.0.0.1" in cmd_lower
+            or "https://127.0.0.1" in cmd_lower
+            or "http://localhost" in cmd_lower
+            or "https://localhost" in cmd_lower
+        ):
+            return True
+
+        # Shell wrappers used by healthchecks.
+        if cmd_base_lower in ("sh", "bash") and (
+            "127.0.0.1" in cmd_lower
+            or "localhost" in cmd_lower
+            or "healthcheck" in cmd_lower
+        ):
+            return True
+
+        # Coolify infra often uses shell exec probes.
+        if container_name.startswith("coolify-") and cmd_base_lower in ("sh", "bash"):
+            return True
+
+        return False

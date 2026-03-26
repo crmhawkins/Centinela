@@ -142,6 +142,16 @@ class IncidentRepository:
                 "by_status": {str(k): int(v) for k, v in by_status_rows},
             }
 
+    def delete_all_incidents(self) -> int:
+        """
+        Delete all incident history rows.
+        Returns number of deleted rows.
+        """
+        with self._Session() as session:
+            result = session.execute(delete(Incident))
+            session.commit()
+            return int(result.rowcount or 0)
+
     def update_incident_status(self, incident_id: int, status: str) -> None:
         with self._Session() as session:
             session.execute(
