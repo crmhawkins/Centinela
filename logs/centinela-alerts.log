@@ -1,0 +1,11 @@
+2026-03-26T12:09:25 | [31mERROR   [0m | centinela.monitors.docker_events | DockerEventMonitor: error handling event exec_start: bash -c whoami && id: 'Logger' object has no attribute 'alert'
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 358, in _handle_event
+    await self._handle_exec(
+        container_name, container_id, attrs, project, action
+    )
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 446, in _handle_exec
+    logger.alert(
+    ^^^^^^^^^^^^
+AttributeError: 'Logger' object has no attribute 'alert'
+2026-03-26T12:12:50 | [35mALERT   [0m | centinela.monitors.docker_events | DOCKER EXEC detected: container=tuya_laravel_app exec_id=a03affe3e03a cmd='bash -c nc -h 2>&1 || true' project=tuya-laravel

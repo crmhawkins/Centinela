@@ -19,10 +19,18 @@ ALERT_LEVEL = 35
 logging.addLevelName(ALERT_LEVEL, "ALERT")
 
 
+def _alert(self, msg, *args, **kwargs):
+    if self.isEnabledFor(ALERT_LEVEL):
+        self._log(ALERT_LEVEL, msg, args, **kwargs)
+
+
+# Patch the base Logger class so ALL instances (even those created before
+# this module was imported) have the .alert() method.
+logging.Logger.alert = _alert  # type: ignore[attr-defined]
+
+
 class CentinelaLogger(logging.Logger):
-    def alert(self, msg, *args, **kwargs):
-        if self.isEnabledFor(ALERT_LEVEL):
-            self._log(ALERT_LEVEL, msg, args, **kwargs)
+    pass
 
 
 logging.setLoggerClass(CentinelaLogger)
