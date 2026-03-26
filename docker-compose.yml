@@ -20,8 +20,10 @@ services:
     container_name: centinela
     restart: unless-stopped
     init: true
-    ports:
-      - "80:8000"
+    # Importante en Coolify: no publiquemos el puerto 80 del host.
+    # Coolify suele enrutar por su proxy; si publicas 80 aquí, falla si ya está ocupado.
+    expose:
+      - "8000"
 
     # -----------------------------------------------------------------------
     # Privileges
