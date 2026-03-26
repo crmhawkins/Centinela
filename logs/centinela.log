@@ -136,3 +136,96 @@
 2026-03-26T11:42:34 | [32mINFO    [0m | centinela.monitors.security_audit | Security audit found 2 finding(s) for container tuya_laravel_app.
 2026-03-26T11:42:34 | [32mINFO    [0m | centinela.monitors.security_audit | Security audit found 2 finding(s) for container tuya_postgres.
 2026-03-26T11:42:34 | [32mINFO    [0m | centinela.monitors.security_audit | Security audit found 2 finding(s) for container tuya_redis.
+2026-03-26T12:09:07 | [32mINFO    [0m | centinela | Logging initialised -> D:\proyectos\programasivan\Centinela\Centinela\logs
+2026-03-26T12:09:07 | [32mINFO    [0m | centinela.main | CENTINELA starting up – logging initialised.
+2026-03-26T12:09:07 | [32mINFO    [0m | centinela.main | Docker client connected successfully.
+2026-03-26T12:09:07 | [32mINFO    [0m | centinela.main | Incident repository initialised.
+2026-03-26T12:09:07 | [32mINFO    [0m | centinela.main | Alert manager initialised.
+2026-03-26T12:09:07 | [32mINFO    [0m | centinela.main | Project registry loaded – 5 project(s) tracked.
+2026-03-26T12:09:07 | [32mINFO    [0m | centinela.main | Monitor cross-wiring complete.
+2026-03-26T12:09:07 | [32mINFO    [0m | centinela.monitors.filesystem | Filesystem watchdog Observer started (early).
+2026-03-26T12:09:07 | [32mINFO    [0m | centinela.main | Running startup audit on all currently running containers...
+2026-03-26T12:09:07 | [32mINFO    [0m | centinela.main | Startup: running security audit for container tuya_laravel_app (project: tuya-laravel)
+2026-03-26T12:09:07 | [32mINFO    [0m | centinela.monitors.security_audit | Security audit found 2 finding(s) for container tuya_laravel_app.
+2026-03-26T12:09:07 | [33mWARNING [0m | centinela.monitors.security_audit | Security audit finding [LOW]: Container root filesystem is writable (container=tuya_laravel_app)
+2026-03-26T12:09:07 | [33mWARNING [0m | centinela.monitors.security_audit | Security audit finding [MEDIUM]: AppArmor profile not applied to container (container=tuya_laravel_app)
+2026-03-26T12:09:07 | [32mINFO    [0m | centinela.main | Startup: registering filesystem watchers for container tuya_laravel_app (project: tuya-laravel)
+2026-03-26T12:09:07 | [32mINFO    [0m | centinela.monitors.filesystem | Adding FS watcher for new container: tuya_laravel_app
+2026-03-26T12:09:07 | [32mINFO    [0m | centinela.main | Startup: running security audit for container tuya_postgres (project: tuya-postgres)
+2026-03-26T12:09:07 | [32mINFO    [0m | centinela.monitors.security_audit | Security audit found 2 finding(s) for container tuya_postgres.
+2026-03-26T12:09:07 | [33mWARNING [0m | centinela.monitors.security_audit | Security audit finding [LOW]: Container root filesystem is writable (container=tuya_postgres)
+2026-03-26T12:09:07 | [33mWARNING [0m | centinela.monitors.security_audit | Security audit finding [MEDIUM]: AppArmor profile not applied to container (container=tuya_postgres)
+2026-03-26T12:09:07 | [32mINFO    [0m | centinela.main | Startup: registering filesystem watchers for container tuya_postgres (project: tuya-postgres)
+2026-03-26T12:09:07 | [32mINFO    [0m | centinela.monitors.filesystem | Adding FS watcher for new container: tuya_postgres
+2026-03-26T12:09:07 | [32mINFO    [0m | centinela.main | Startup: running security audit for container tuya_redis (project: tuya-redis)
+2026-03-26T12:09:07 | [32mINFO    [0m | centinela.monitors.security_audit | Security audit found 2 finding(s) for container tuya_redis.
+2026-03-26T12:09:07 | [33mWARNING [0m | centinela.monitors.security_audit | Security audit finding [LOW]: Container root filesystem is writable (container=tuya_redis)
+2026-03-26T12:09:07 | [33mWARNING [0m | centinela.monitors.security_audit | Security audit finding [MEDIUM]: AppArmor profile not applied to container (container=tuya_redis)
+2026-03-26T12:09:07 | [32mINFO    [0m | centinela.main | Startup: registering filesystem watchers for container tuya_redis (project: tuya-redis)
+2026-03-26T12:09:07 | [32mINFO    [0m | centinela.monitors.filesystem | Adding FS watcher for new container: tuya_redis
+2026-03-26T12:09:07 | [32mINFO    [0m | centinela.main | Startup audit complete (3 containers inspected).
+2026-03-26T12:09:07 | [32mINFO    [0m | centinela.main | All monitors started. CENTINELA is watching 5 project(s).
+2026-03-26T12:09:07 | [32mINFO    [0m | centinela.monitors.docker_events | DockerEventMonitor starting.
+2026-03-26T12:09:07 | [32mINFO    [0m | centinela.monitors.docker_events | DockerEventMonitor: event stream started.
+2026-03-26T12:09:07 | [32mINFO    [0m | centinela.monitors.process_monitor | ProcessMonitor starting.
+2026-03-26T12:09:07 | [32mINFO    [0m | centinela.monitors.network | NetworkMonitor started (interval=15s, host_root=).
+2026-03-26T12:09:07 | [32mINFO    [0m | centinela.monitors.filesystem | Filesystem watchdog Observer already running.
+2026-03-26T12:09:07 | [32mINFO    [0m | centinela.monitors.security_audit | SecurityAuditMonitor started (interval=60s).
+2026-03-26T12:09:07 | [32mINFO    [0m | centinela.monitors.self_integrity | SelfIntegrityMonitor starting – scanning D:\proyectos\programasivan\Centinela\Centinela\src for baseline.
+2026-03-26T12:09:07 | [32mINFO    [0m | centinela.monitors.self_integrity | SelfIntegrityMonitor baseline captured: 25 .py file(s).
+2026-03-26T12:09:07 | [32mINFO    [0m | centinela.main | Web dashboard starting on port 8080
+2026-03-26T12:09:07 | [32mINFO    [0m | centinela.monitors.filesystem | Periodic FS hash check loop started (interval=60s).
+2026-03-26T12:09:25 | [31mERROR   [0m | centinela.monitors.docker_events | DockerEventMonitor: error handling event exec_start: bash -c whoami && id: 'Logger' object has no attribute 'alert'
+Traceback (most recent call last):
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 358, in _handle_event
+    await self._handle_exec(
+        container_name, container_id, attrs, project, action
+    )
+  File "D:\proyectos\programasivan\Centinela\Centinela\src\monitors\docker_events.py", line 446, in _handle_exec
+    logger.alert(
+    ^^^^^^^^^^^^
+AttributeError: 'Logger' object has no attribute 'alert'
+2026-03-26T12:12:39 | [32mINFO    [0m | centinela | Logging initialised -> D:\proyectos\programasivan\Centinela\Centinela\logs
+2026-03-26T12:12:39 | [32mINFO    [0m | centinela.main | CENTINELA starting up – logging initialised.
+2026-03-26T12:12:39 | [32mINFO    [0m | centinela.main | Docker client connected successfully.
+2026-03-26T12:12:39 | [32mINFO    [0m | centinela.main | Incident repository initialised.
+2026-03-26T12:12:39 | [32mINFO    [0m | centinela.main | Alert manager initialised.
+2026-03-26T12:12:39 | [32mINFO    [0m | centinela.main | Project registry loaded – 5 project(s) tracked.
+2026-03-26T12:12:39 | [32mINFO    [0m | centinela.main | Monitor cross-wiring complete.
+2026-03-26T12:12:39 | [32mINFO    [0m | centinela.monitors.filesystem | Filesystem watchdog Observer started (early).
+2026-03-26T12:12:39 | [32mINFO    [0m | centinela.main | Running startup audit on all currently running containers...
+2026-03-26T12:12:39 | [32mINFO    [0m | centinela.main | Startup: running security audit for container tuya_laravel_app (project: tuya-laravel)
+2026-03-26T12:12:39 | [32mINFO    [0m | centinela.monitors.security_audit | Security audit found 2 finding(s) for container tuya_laravel_app.
+2026-03-26T12:12:39 | [33mWARNING [0m | centinela.monitors.security_audit | Security audit finding [LOW]: Container root filesystem is writable (container=tuya_laravel_app)
+2026-03-26T12:12:39 | [33mWARNING [0m | centinela.monitors.security_audit | Security audit finding [MEDIUM]: AppArmor profile not applied to container (container=tuya_laravel_app)
+2026-03-26T12:12:39 | [32mINFO    [0m | centinela.main | Startup: registering filesystem watchers for container tuya_laravel_app (project: tuya-laravel)
+2026-03-26T12:12:39 | [32mINFO    [0m | centinela.monitors.filesystem | Adding FS watcher for new container: tuya_laravel_app
+2026-03-26T12:12:39 | [32mINFO    [0m | centinela.main | Startup: running security audit for container tuya_postgres (project: tuya-postgres)
+2026-03-26T12:12:39 | [32mINFO    [0m | centinela.monitors.security_audit | Security audit found 2 finding(s) for container tuya_postgres.
+2026-03-26T12:12:39 | [33mWARNING [0m | centinela.monitors.security_audit | Security audit finding [LOW]: Container root filesystem is writable (container=tuya_postgres)
+2026-03-26T12:12:39 | [33mWARNING [0m | centinela.monitors.security_audit | Security audit finding [MEDIUM]: AppArmor profile not applied to container (container=tuya_postgres)
+2026-03-26T12:12:39 | [32mINFO    [0m | centinela.main | Startup: registering filesystem watchers for container tuya_postgres (project: tuya-postgres)
+2026-03-26T12:12:39 | [32mINFO    [0m | centinela.monitors.filesystem | Adding FS watcher for new container: tuya_postgres
+2026-03-26T12:12:39 | [32mINFO    [0m | centinela.main | Startup: running security audit for container tuya_redis (project: tuya-redis)
+2026-03-26T12:12:39 | [32mINFO    [0m | centinela.monitors.security_audit | Security audit found 2 finding(s) for container tuya_redis.
+2026-03-26T12:12:39 | [33mWARNING [0m | centinela.monitors.security_audit | Security audit finding [LOW]: Container root filesystem is writable (container=tuya_redis)
+2026-03-26T12:12:39 | [33mWARNING [0m | centinela.monitors.security_audit | Security audit finding [MEDIUM]: AppArmor profile not applied to container (container=tuya_redis)
+2026-03-26T12:12:39 | [32mINFO    [0m | centinela.main | Startup: registering filesystem watchers for container tuya_redis (project: tuya-redis)
+2026-03-26T12:12:39 | [32mINFO    [0m | centinela.monitors.filesystem | Adding FS watcher for new container: tuya_redis
+2026-03-26T12:12:39 | [32mINFO    [0m | centinela.main | Startup audit complete (3 containers inspected).
+2026-03-26T12:12:39 | [32mINFO    [0m | centinela.main | All monitors started. CENTINELA is watching 5 project(s).
+2026-03-26T12:12:39 | [32mINFO    [0m | centinela.monitors.docker_events | DockerEventMonitor starting.
+2026-03-26T12:12:39 | [32mINFO    [0m | centinela.monitors.docker_events | DockerEventMonitor: event stream started.
+2026-03-26T12:12:39 | [32mINFO    [0m | centinela.monitors.process_monitor | ProcessMonitor starting.
+2026-03-26T12:12:39 | [32mINFO    [0m | centinela.monitors.network | NetworkMonitor started (interval=15s, host_root=).
+2026-03-26T12:12:39 | [32mINFO    [0m | centinela.monitors.filesystem | Filesystem watchdog Observer already running.
+2026-03-26T12:12:39 | [32mINFO    [0m | centinela.monitors.security_audit | SecurityAuditMonitor started (interval=60s).
+2026-03-26T12:12:39 | [32mINFO    [0m | centinela.monitors.self_integrity | SelfIntegrityMonitor starting – scanning D:\proyectos\programasivan\Centinela\Centinela\src for baseline.
+2026-03-26T12:12:39 | [32mINFO    [0m | centinela.monitors.self_integrity | SelfIntegrityMonitor baseline captured: 25 .py file(s).
+2026-03-26T12:12:39 | [32mINFO    [0m | centinela.main | Web dashboard starting on port 8080
+2026-03-26T12:12:39 | [32mINFO    [0m | centinela.monitors.filesystem | Periodic FS hash check loop started (interval=60s).
+2026-03-26T12:12:50 | [35mALERT   [0m | centinela.monitors.docker_events | DOCKER EXEC detected: container=tuya_laravel_app exec_id=a03affe3e03a cmd='bash -c nc -h 2>&1 || true' project=tuya-laravel
+2026-03-26T12:12:50 | [32mINFO    [0m | centinela.alerts.manager | INCIDENT SAVED id=13 project=tuya-laravel container=tuya_laravel_app type=DOCKER_EVENT_EXEC severity=high rule='exec_in_container:bash'
+2026-03-26T12:12:50 | [33mWARNING [0m | centinela.alerts.manager | No alert channels configured for incident id=13 project=tuya-laravel
+2026-03-26T12:12:50 | [32mINFO    [0m | centinela.monitors.process_monitor | ProcessMonitor: running immediate check on tuya_laravel_app
+2026-03-26T12:17:39 | [32mINFO    [0m | centinela.main | DB cleanup: removed 0 old network samples, 0 closed incidents.
