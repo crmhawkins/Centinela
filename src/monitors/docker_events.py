@@ -34,6 +34,7 @@ from config.models import (
 )
 from config.loader import ProjectRegistry
 from alerts.manager import AlertManager
+from utils.helpers import looks_like_healthcheck_command
 
 logger = logging.getLogger("centinela.monitors.docker_events")
 
@@ -437,9 +438,9 @@ class DockerEventMonitor:
         # Skip trusted exec commands (Centinela internals, healthchecks, patterns, destinations)
         trusted, reason = self._is_trusted_exec(cmd, container_name, project)
         if trusted:
-            logger.debug(
-                "Ignoring trusted exec: container=%s cmd=%r reason=%s",
-                container_name, cmd, reason,
+            logger.info(
+                "TRACE_HEALTHCHECK_EXEC: container=%s exec_id=%s cmd=%r reason=%s",
+                container_name, exec_id[:12] if exec_id else "unknown", cmd, reason,
             )
             return
 
@@ -751,6 +752,10 @@ class DockerEventMonitor:
         for own_prefix in _CENTINELA_OWN_EXEC_PREFIXES:
             if cmd.startswith(own_prefix):
                 return (True, "centinela-internal")
+
+        # 1b. Generic healthcheck/readiness commands (including Coolify patterns)
+        if looks_like_healthcheck_command(cmd):
+            return (True, "healthcheck-pattern")
 
         # 2. Container healthcheck
         if container_name in self._healthcheck_cache:

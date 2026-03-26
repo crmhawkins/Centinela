@@ -5,6 +5,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import socket
 import struct
 from datetime import datetime, time, timezone
@@ -229,3 +230,43 @@ def is_suspicious_process(cmd: str, always_list: list,
             return True, "medium", pattern
 
     return False, "", ""
+
+
+def looks_like_healthcheck_command(cmd: str) -> bool:
+    """
+    Return True when a command appears to be a liveness/readiness/healthcheck.
+
+    This intentionally includes common orchestrator and Coolify probe patterns
+    to reduce false positives from benign periodic checks.
+    """
+    if not cmd:
+        return False
+
+    cmd_norm = " ".join(str(cmd).strip().lower().split())
+    if not cmd_norm:
+        return False
+
+    simple_markers = (
+        "healthcheck",
+        "health check",
+        "readiness",
+        "liveness",
+        "startup probe",
+        "pg_isready",
+        "mysqladmin ping",
+        "--innodb_initialized",
+        "redis-cli ping",
+        "curl -f http://localhost",
+        "curl -fs http://localhost",
+        "wget --spider",
+        "php artisan route:list",
+        "php artisan about",
+    )
+    if any(marker in cmd_norm for marker in simple_markers):
+        return True
+
+    # Generic path probes such as /health, /healthz, /ready, /live.
+    if re.search(r"(^|[\s\"'])/(health|healthz|ready|readiness|live|liveness)([\s\"'/?]|$)", cmd_norm):
+        return True
+
+    return False

@@ -330,6 +330,7 @@
   <nav>
     <a class="nav-brand" href="/">&#9673; Centinela</a>
     <a href="/" {% if request.url.path == "/" %}class="active"{% endif %}>Dashboard</a>
+    <a href="/containers" {% if request.url.path.startswith("/containers") %}class="active"{% endif %}>Contenedores</a>
     <a href="/incidents" {% if request.url.path.startswith("/incidents") %}class="active"{% endif %}>Incidents</a>
   </nav>
   <main>

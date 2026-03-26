@@ -44,6 +44,7 @@ from alerts.manager import AlertManager
 from utils.helpers import (
     build_dedup_key,
     is_suspicious_process,
+    looks_like_healthcheck_command,
     parse_docker_top,
 )
 
@@ -342,6 +343,16 @@ class ProcessMonitor:
                 continue
 
             if not cmd:
+                continue
+
+            # Healthcheck commands are expected operational noise.
+            if looks_like_healthcheck_command(cmd):
+                logger.info(
+                    "TRACE_HEALTHCHECK_PROCESS: container=%s pid=%s cmd=%s",
+                    container_name,
+                    str(pid).strip() or "unknown",
+                    cmd[:200],
+                )
                 continue
 
             # ---- Standard suspicious-process check --------------------

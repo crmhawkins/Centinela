@@ -8,8 +8,9 @@ import os
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, Optional
 
+import docker
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
@@ -33,6 +34,105 @@ _TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
 
 PAGE_SIZE = 50
+
+
+def _bytes_to_human(num_bytes: Optional[float]) -> str:
+    if num_bytes is None:
+        return "—"
+    value = float(num_bytes)
+    units = ["B", "KB", "MB", "GB", "TB"]
+    idx = 0
+    while value >= 1024.0 and idx < len(units) - 1:
+        value /= 1024.0
+        idx += 1
+    if idx == 0:
+        return f"{int(value)} {units[idx]}"
+    return f"{value:.1f} {units[idx]}"
+
+
+def _safe_cpu_percent(stats: Dict[str, Any]) -> float:
+    try:
+        cpu_total = stats.get("cpu_stats", {}).get("cpu_usage", {}).get("total_usage", 0)
+        pre_total = stats.get("precpu_stats", {}).get("cpu_usage", {}).get("total_usage", 0)
+        cpu_delta = cpu_total - pre_total
+
+        sys_total = stats.get("cpu_stats", {}).get("system_cpu_usage", 0)
+        pre_sys_total = stats.get("precpu_stats", {}).get("system_cpu_usage", 0)
+        sys_delta = sys_total - pre_sys_total
+
+        cpu_count = (
+            len(stats.get("cpu_stats", {}).get("cpu_usage", {}).get("percpu_usage", []) or [])
+            or stats.get("cpu_stats", {}).get("online_cpus")
+            or 1
+        )
+        if cpu_delta > 0 and sys_delta > 0:
+            return (cpu_delta / sys_delta) * cpu_count * 100.0
+    except Exception:
+        return 0.0
+    return 0.0
+
+
+def _collect_container_runtime_metrics() -> list:
+    rows = []
+    client = None
+    try:
+        client = docker.from_env()
+        for container in client.containers.list():
+            name = container.name
+            short_id = (container.id or "")[:12]
+            image = getattr(container.image, "tags", []) or []
+            image_label = image[0] if image else (container.image.short_id if container.image else "unknown")
+            status = container.status
+
+            cpu_pct = 0.0
+            mem_usage = None
+            mem_limit = None
+            mem_pct = 0.0
+            net_rx = 0
+            net_tx = 0
+            disk_rw = None
+
+            try:
+                stats = container.stats(stream=False)
+                cpu_pct = _safe_cpu_percent(stats)
+                mem = stats.get("memory_stats", {}) or {}
+                mem_usage = mem.get("usage")
+                mem_limit = mem.get("limit")
+                if mem_usage is not None and mem_limit:
+                    mem_pct = (float(mem_usage) / float(mem_limit)) * 100.0
+                networks = stats.get("networks", {}) or {}
+                for iface in networks.values():
+                    net_rx += int(iface.get("rx_bytes", 0) or 0)
+                    net_tx += int(iface.get("tx_bytes", 0) or 0)
+            except Exception:
+                pass
+
+            try:
+                details = client.api.inspect_container(container.id, size=True)
+                disk_rw = details.get("SizeRw")
+            except Exception:
+                pass
+
+            rows.append({
+                "name": name,
+                "id": short_id,
+                "image": image_label,
+                "status": status,
+                "cpu_pct": round(cpu_pct, 2),
+                "mem_usage_human": _bytes_to_human(mem_usage),
+                "mem_limit_human": _bytes_to_human(mem_limit),
+                "mem_pct": round(mem_pct, 2),
+                "disk_rw_human": _bytes_to_human(disk_rw),
+                "net_rx_human": _bytes_to_human(net_rx),
+                "net_tx_human": _bytes_to_human(net_tx),
+            })
+    finally:
+        if client is not None:
+            try:
+                client.close()
+            except Exception:
+                pass
+    return sorted(rows, key=lambda r: r["name"])
 
 
 def configure(db_url: str) -> None:
@@ -266,6 +366,78 @@ def create_web_app() -> FastAPI:
                 "status": status or "",
                 "alert_type": alert_type or "",
                 "active_filters": active_filters,
+            },
+        )
+
+    # ------------------------------------------------------------------
+    # GET /containers — Runtime container metrics + incident summary
+    # ------------------------------------------------------------------
+    @app.get("/containers", response_class=HTMLResponse)
+    async def containers_page(request: Request):
+        containers = []
+        by_container = {}
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        since_7d = now - timedelta(days=7)
+
+        try:
+            containers = _collect_container_runtime_metrics()
+        except Exception as exc:
+            import logging
+            logging.getLogger("centinela.web").error("Container metrics error: %s", exc)
+
+        try:
+            db = _get_db_session(_DB_URL)
+            try:
+                total_rows = (
+                    db.query(Incident.container_name, func.count(Incident.id))
+                    .group_by(Incident.container_name)
+                    .all()
+                )
+                open_rows = (
+                    db.query(Incident.container_name, func.count(Incident.id))
+                    .filter(Incident.status != "closed")
+                    .group_by(Incident.container_name)
+                    .all()
+                )
+                critical_rows = (
+                    db.query(Incident.container_name, func.count(Incident.id))
+                    .filter(Incident.severity == "critical")
+                    .group_by(Incident.container_name)
+                    .all()
+                )
+                last_7d_rows = (
+                    db.query(Incident.container_name, func.count(Incident.id))
+                    .filter(Incident.timestamp >= since_7d)
+                    .group_by(Incident.container_name)
+                    .all()
+                )
+
+                for name, cnt in total_rows:
+                    by_container.setdefault(name, {})["total"] = cnt
+                for name, cnt in open_rows:
+                    by_container.setdefault(name, {})["open"] = cnt
+                for name, cnt in critical_rows:
+                    by_container.setdefault(name, {})["critical"] = cnt
+                for name, cnt in last_7d_rows:
+                    by_container.setdefault(name, {})["last_7d"] = cnt
+            finally:
+                db.close()
+        except Exception as exc:
+            import logging
+            logging.getLogger("centinela.web").error("Container incident summary error: %s", exc)
+
+        for row in containers:
+            stats = by_container.get(row["name"], {})
+            row["inc_total"] = stats.get("total", 0)
+            row["inc_open"] = stats.get("open", 0)
+            row["inc_critical"] = stats.get("critical", 0)
+            row["inc_last_7d"] = stats.get("last_7d", 0)
+
+        return templates.TemplateResponse(
+            request=request,
+            name="containers.html",
+            context={
+                "containers": containers,
             },
         )
 

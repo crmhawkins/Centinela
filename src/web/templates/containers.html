@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block head_extra %}<meta http-equiv="refresh" content="20">{% endblock %}
+{% block content %}
+<h1>Contenedores</h1>
+
+<div class="card">
+  {% if containers %}
+  <table>
+    <thead>
+      <tr>
+        <th>Contenedor</th>
+        <th>ID</th>
+        <th>Estado</th>
+        <th>Imagen</th>
+        <th>CPU</th>
+        <th>RAM</th>
+        <th>Disco (RW)</th>
+        <th>Red RX</th>
+        <th>Red TX</th>
+        <th>Alertas (7d)</th>
+        <th>Abiertas</th>
+        <th>Criticas</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in containers %}
+      <tr>
+        <td style="font-weight:600;">{{ c.name }}</td>
+        <td style="color:#7080a0;">{{ c.id }}</td>
+        <td>{{ c.status }}</td>
+        <td style="max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ c.image }}</td>
+        <td>{{ "%.2f"|format(c.cpu_pct) }}%</td>
+        <td>{{ c.mem_usage_human }} / {{ c.mem_limit_human }} ({{ "%.2f"|format(c.mem_pct) }}%)</td>
+        <td>{{ c.disk_rw_human }}</td>
+        <td>{{ c.net_rx_human }}</td>
+        <td>{{ c.net_tx_human }}</td>
+        <td>{{ c.inc_last_7d }}</td>
+        <td>{{ c.inc_open }}</td>
+        <td>{{ c.inc_critical }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-state">No hay contenedores en ejecucion.</p>
+  {% endif %}
+</div>
+{% endblock %}
