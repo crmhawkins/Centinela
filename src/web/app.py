@@ -2,13 +2,15 @@
 CENTINELA – Web Dashboard
 FastAPI application providing a read-only dashboard and incident management UI.
 """
-import base64
+import hashlib
+import hmac
 import json
 import os
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
+from urllib.parse import quote
 
 import docker
 from fastapi import FastAPI, Form, Request
@@ -34,6 +36,8 @@ _TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
 
 PAGE_SIZE = 50
+SESSION_COOKIE_NAME = "centinela_session"
+SESSION_TTL_SECONDS = int(os.environ.get("CENTINELA_WEB_SESSION_TTL", "43200"))  # 12h
 
 
 def _bytes_to_human(num_bytes: Optional[float]) -> str:
@@ -140,6 +144,30 @@ def configure(db_url: str) -> None:
     _DB_URL = db_url
 
 
+def _auth_credentials() -> tuple[str, str]:
+    user = os.environ.get("CENTINELA_WEB_USER", "admin")
+    password = os.environ.get("CENTINELA_WEB_PASS", "centinela")
+    return user, password
+
+
+def _session_secret() -> str:
+    # Can be overridden; fallback keeps compatibility without extra env vars.
+    return os.environ.get("CENTINELA_WEB_SESSION_SECRET", "centinela-session-secret")
+
+
+def _build_session_token(username: str, password: str) -> str:
+    payload = f"{username}:{password}:{_session_secret()}".encode("utf-8")
+    return hmac.new(_session_secret().encode("utf-8"), payload, hashlib.sha256).hexdigest()
+
+
+def _is_valid_session(cookie_value: Optional[str]) -> bool:
+    if not cookie_value:
+        return False
+    user, password = _auth_credentials()
+    expected = _build_session_token(user, password)
+    return hmac.compare_digest(cookie_value, expected)
+
+
 def _get_db_session(db_url: str) -> Session:
     """Create a read-only SQLAlchemy session from the given db_url."""
     connect_args = {}
@@ -159,21 +187,6 @@ def _get_db_session(db_url: str) -> Session:
 # App factory
 # ---------------------------------------------------------------------------
 
-def _check_auth(request: Request) -> bool:
-    """Return True if the request carries valid Basic Auth credentials."""
-    auth_header = request.headers.get("Authorization", "")
-    if not auth_header.startswith("Basic "):
-        return False
-    try:
-        decoded = base64.b64decode(auth_header[6:]).decode("utf-8")
-        username, _, password = decoded.partition(":")
-    except Exception:
-        return False
-    _user = os.environ.get("CENTINELA_WEB_USER", "admin")
-    _pass = os.environ.get("CENTINELA_WEB_PASS", "centinela")
-    return username == _user and password == _pass
-
-
 def _auth_enabled() -> bool:
     """Return False when auth is explicitly disabled via environment variables."""
     if os.environ.get("CENTINELA_WEB_AUTH", "").lower() == "false":
@@ -185,17 +198,22 @@ def _auth_enabled() -> bool:
     return True
 
 
-class BasicAuthMiddleware(BaseHTTPMiddleware):
+class SessionAuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         if not _auth_enabled():
             return await call_next(request)
-        # Exempt /health from authentication
-        if request.url.path == "/health":
+        # Exempt auth and health endpoints from authentication.
+        if request.url.path in ("/health", "/login", "/logout"):
             return await call_next(request)
-        if not _check_auth(request):
-            return Response(
-                status_code=401,
-                headers={"WWW-Authenticate": 'Basic realm="CENTINELA"'},
+
+        session_cookie = request.cookies.get(SESSION_COOKIE_NAME)
+        if not _is_valid_session(session_cookie):
+            next_url = request.url.path
+            if request.url.query:
+                next_url = f"{next_url}?{request.url.query}"
+            return RedirectResponse(
+                url=f"/login?next={quote(next_url, safe='/?=&')}",
+                status_code=303,
             )
         return await call_next(request)
 
@@ -203,7 +221,7 @@ class BasicAuthMiddleware(BaseHTTPMiddleware):
 def create_web_app() -> FastAPI:
     app = FastAPI(title="CENTINELA Dashboard", docs_url=None, redoc_url=None)
 
-    app.add_middleware(BasicAuthMiddleware)
+    app.add_middleware(SessionAuthMiddleware)
 
     # ------------------------------------------------------------------
     # GET /health — Health check (exempt from auth)
@@ -211,6 +229,53 @@ def create_web_app() -> FastAPI:
     @app.get("/health")
     async def health():
         return {"status": "ok"}
+
+    @app.get("/login", response_class=HTMLResponse)
+    async def login_page(request: Request, next: str = "/"):
+        if not _auth_enabled():
+            return RedirectResponse(url=next or "/", status_code=303)
+        if _is_valid_session(request.cookies.get(SESSION_COOKIE_NAME)):
+            return RedirectResponse(url=next or "/", status_code=303)
+        return templates.TemplateResponse(
+            request=request,
+            name="login.html",
+            context={"next_url": next or "/", "error": ""},
+        )
+
+    @app.post("/login", response_class=HTMLResponse)
+    async def login_submit(
+        request: Request,
+        username: str = Form(...),
+        password: str = Form(...),
+        next: str = Form("/"),
+    ):
+        expected_user, expected_pass = _auth_credentials()
+        if username != expected_user or password != expected_pass:
+            return templates.TemplateResponse(
+                request=request,
+                name="login.html",
+                context={"next_url": next or "/", "error": "Credenciales incorrectas"},
+                status_code=401,
+            )
+
+        target = next if next.startswith("/") else "/"
+        response = RedirectResponse(url=target, status_code=303)
+        response.set_cookie(
+            key=SESSION_COOKIE_NAME,
+            value=_build_session_token(expected_user, expected_pass),
+            max_age=SESSION_TTL_SECONDS,
+            httponly=True,
+            samesite="lax",
+            secure=False,
+            path="/",
+        )
+        return response
+
+    @app.get("/logout")
+    async def logout():
+        response = RedirectResponse(url="/login", status_code=303)
+        response.delete_cookie(SESSION_COOKIE_NAME, path="/")
+        return response
 
     # ------------------------------------------------------------------
     # GET / — Dashboard
