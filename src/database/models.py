@@ -55,6 +55,30 @@ class Incident(Base):
 
 
 # ---------------------------------------------------------------------------
+# AIThreatAssessment – AI enrichment for incidents
+# ---------------------------------------------------------------------------
+
+class AIThreatAssessment(Base):
+    """
+    AI-generated security assessment associated with one incident.
+    """
+    __tablename__ = "ai_threat_assessments"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    timestamp = Column(DateTime, default=_utcnow, nullable=False, index=True)
+    incident_id = Column(Integer, nullable=False, index=True)
+    container_name = Column(String(200), nullable=False, index=True)
+    project = Column(String(150), nullable=False, index=True)
+    ai_model = Column(String(120), nullable=False, default="unknown")
+    threat_title = Column(String(200), nullable=False, default="Unknown threat")
+    threat_description = Column(Text, nullable=False, default="")
+    severity = Column(String(10), nullable=False, default="medium", index=True)
+    confidence = Column(Integer, nullable=False, default=50)  # 0..100
+    recommendations = Column(Text, nullable=False, default="")
+    raw_response = Column(Text, nullable=False, default="")
+
+
+# ---------------------------------------------------------------------------
 # NetworkBaseline – known destinations per container
 # ---------------------------------------------------------------------------
 

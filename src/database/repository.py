@@ -17,6 +17,7 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session, sessionmaker
 
 from .models import (
+    AIThreatAssessment,
     FilesystemSnapshot,
     Incident,
     NetworkBaseline,
@@ -85,6 +86,19 @@ class IncidentRepository:
                 .values(alert_sent=True)
             )
             session.commit()
+
+    def save_ai_assessment(self, assessment: AIThreatAssessment) -> AIThreatAssessment:
+        with self._Session() as session:
+            session.add(assessment)
+            session.commit()
+            session.refresh(assessment)
+            return assessment
+
+    def get_latest_ai_assessment(self) -> Optional[AIThreatAssessment]:
+        with self._Session() as session:
+            return session.scalar(
+                select(AIThreatAssessment).order_by(AIThreatAssessment.timestamp.desc())
+            )
 
     def recent_incident_exists(self, dedup_key: str, since_seconds: int) -> bool:
         """Return True if an incident with this dedup_key was created recently."""

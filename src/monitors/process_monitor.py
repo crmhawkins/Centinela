@@ -369,10 +369,15 @@ class ProcessMonitor:
                 continue
 
             # ---- Standard suspicious-process check --------------------
+            # For unregistered containers (project is None) only flag
+            # always-suspicious tools (nmap, nc, etc.).  Using CONTEXT_SUSPICIOUS
+            # on infrastructure/orchestrator containers (Coolify, Traefik, etc.)
+            # was the main driver of false positives.
+            ctx_list = CONTEXT_SUSPICIOUS_PROCESSES if project is not None else []
             suspicious, severity, matched = is_suspicious_process(
                 cmd,
                 ALWAYS_SUSPICIOUS_PROCESSES,
-                CONTEXT_SUSPICIOUS_PROCESSES,
+                ctx_list,
                 extra,
             )
 

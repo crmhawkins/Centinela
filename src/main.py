@@ -26,6 +26,7 @@ from monitors.security_audit import SecurityAuditMonitor
 from monitors.self_integrity import SelfIntegrityMonitor
 from logging_manager.logger import setup_logging
 from web.app import create_web_app, configure as configure_web
+from ai.analyzer import AIThreatAnalyzer
 
 logger = logging.getLogger("centinela.main")
 
@@ -181,6 +182,9 @@ async def main() -> None:
     # BUG FIX: was AlertManager(config) – constructor requires (config, repo)
     alert_manager = AlertManager(config, repository)
     logger.info("Alert manager initialised.")
+    ai_analyzer = AIThreatAnalyzer(repository)
+    alert_manager.register_ai_analyzer(ai_analyzer)
+    logger.info("AI threat analyzer initialised.")
 
     # BUG FIX: was ProjectRegistry(config) – constructor expects projects:list, not GlobalConfig
     # BUG FIX: await registry.load() removed – ProjectRegistry has no load() method; sync build
@@ -318,6 +322,7 @@ async def main() -> None:
         asyncio.create_task(self_integrity_monitor.run(), name="self-integrity"),
         asyncio.create_task(_run_web_server(), name="web-server"),
         asyncio.create_task(_cleanup_loop(repository), name="db-cleanup"),
+        asyncio.create_task(ai_analyzer.run(), name="ai-analyzer"),
     ]
 
     # ------------------------------------------------------------------ #

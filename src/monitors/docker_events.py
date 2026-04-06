@@ -17,6 +17,7 @@ start       → INFO    – new / unknown container started (log only unless sus
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 import time
@@ -57,6 +58,53 @@ _CENTINELA_OWN_EXEC_PREFIXES = (
     "stat -c ",   # filesystem_monitor permission checks
     "ps aux",     # process_monitor top fallback
     "ps -aux",
+)
+
+# Coolify / platform maintenance commands that should not generate incidents.
+_BENIGN_ORCHESTRATOR_EXEC_PATTERNS = (
+    # Coolify / orchestrator probes
+    "php artisan optimize:clear",
+    "templates/service-templates-latest.json",
+    "nginx -t >/dev/null 2>&1",
+    "php-fpm -t >/dev/null 2>&1",
+    "fsockopen(\"127.0.0.1\",80)",
+    "fsockopen('127.0.0.1',80)",
+    "fsockopen(\"127.0.0.1\",9000)",
+    "fsockopen('127.0.0.1',9000)",
+    "test -f /var/www/html/artisan",
+    # Common deployment / CI commands
+    "php artisan migrate",
+    "php artisan db:seed",
+    "php artisan config:cache",
+    "php artisan route:cache",
+    "php artisan view:cache",
+    "php artisan storage:link",
+    "php artisan queue:restart",
+    "composer install",
+    "composer update",
+    "composer dump-autoload",
+    "npm install",
+    "npm run build",
+    "npm run prod",
+    "npm ci",
+    "yarn install",
+    "yarn build",
+    "pip install",
+    "python manage.py migrate",
+    "python manage.py collectstatic",
+    "bundle install",
+    "bundle exec",
+    "supervisorctl",
+    "update-alternatives",
+    # Database maintenance
+    "mysqladmin",
+    "pg_dump",
+    "pg_restore",
+    "redis-cli",
+    # Init / entrypoint patterns
+    "/entrypoint.sh",
+    "/docker-entrypoint",
+    "docker-entrypoint",
 )
 
 
@@ -465,10 +513,31 @@ class DockerEventMonitor:
                 )
             return
 
+        # Only alert if the command matches a known-suspicious pattern.
+        # Generic exec commands (deploys, migrations, etc.) are logged but do not
+        # create incidents – they were the primary source of false positives.
+        classification = self._classify_exec_command(cmd, project)
+        if not classification:
+            logger.info(
+                "EXEC (unclassified, no incident): container=%s exec_id=%s cmd=%r",
+                container_name, exec_id[:12] if exec_id else "?", cmd[:200],
+            )
+            # Still fire exec callbacks so the process monitor can run
+            for cb in self._exec_callbacks:
+                asyncio.ensure_future(cb(container_name))
+            return
+
+        # Map classification to severity
+        if classification.startswith("always_suspicious") or classification.startswith("project_suspicious"):
+            severity = "high"
+        else:
+            # context_suspicious: bash, sh, python, curl in a suspicious exec context
+            severity = "medium"
+
         logger.alert(
-            "DOCKER EXEC detected: container=%s exec_id=%s cmd=%r project=%s",
+            "DOCKER EXEC detected: container=%s exec_id=%s cmd=%r classification=%s project=%s",
             container_name, exec_id[:12] if exec_id else "?",
-            cmd, project.name if project else "unregistered",
+            cmd, classification, project.name if project else "unregistered",
         )
 
         # Build evidence
@@ -478,22 +547,18 @@ class DockerEventMonitor:
             "exec_id": exec_id[:12] if exec_id else "",
             "command": cmd,
             "image": attrs.get("image", ""),
+            "classification": classification,
         }
-
-        # Analyze the command for known-suspicious patterns
-        extra_severity_info = self._classify_exec_command(cmd, project)
-        if extra_severity_info:
-            evidence["classification"] = extra_severity_info
 
         await self._alert_manager.raise_alert(
             project=project,
             container_name=container_name,
             container_id=container_id,
             alert_type="DOCKER_EVENT_EXEC",
-            severity="high",
+            severity=severity,
             rule=f"exec_in_container:{cmd.split()[0] if cmd else 'unknown'}",
             evidence=evidence,
-            dedup_extra=exec_id[:12] if exec_id else cmd[:30],
+            dedup_extra=self._exec_dedup_token(cmd, exec_id),
         )
 
         # Fire exec callbacks (e.g. trigger immediate process scan)
@@ -519,7 +584,11 @@ class DockerEventMonitor:
         except ValueError:
             exit_code = -1
 
-        if exit_code in (0, 143):
+        # Expected exit codes that do not indicate a problem:
+        #   0   → clean shutdown
+        #   137 → SIGKILL (docker stop after grace period, normal in rolling deploys)
+        #   143 → SIGTERM (graceful stop by orchestrator)
+        if exit_code in (0, 137, 143):
             logger.debug(
                 "Container %s exited with code %d (expected) – no alert",
                 container_name, exit_code,
@@ -790,6 +859,12 @@ class DockerEventMonitor:
                 if pattern in cmd:
                     return (True, "trusted-pattern")
 
+        # 3b. Known benign orchestrator probes/maintenance (Coolify, health checks)
+        cmd_lower = cmd.lower()
+        for pattern in _BENIGN_ORCHESTRATOR_EXEC_PATTERNS:
+            if pattern in cmd_lower:
+                return (True, "orchestrator-maintenance")
+
         # 4. Trusted curl/wget destination
         cmd_stripped = cmd.strip()
         cmd_lower = cmd_stripped.lower()
@@ -811,6 +886,17 @@ class DockerEventMonitor:
                         return (True, "trusted-destination")
 
         return (False, "")
+
+    @staticmethod
+    def _exec_dedup_token(cmd: str, exec_id: str) -> str:
+        """
+        Build stable dedup token for exec incidents.
+        Using exec_id causes alert storms because each execution is unique.
+        """
+        cmd_norm = " ".join((cmd or "").strip().lower().split())
+        if cmd_norm:
+            return hashlib.sha1(cmd_norm.encode("utf-8")).hexdigest()[:12]
+        return exec_id[:12] if exec_id else "unknown"
 
     # ------------------------------------------------------------------
     # Helper: get exec command from Docker inspect
@@ -860,6 +946,12 @@ class DockerEventMonitor:
 
         Returns a short classification string (e.g. "always_suspicious:nmap")
         or None if the command looks benign.
+
+        Special handling for shell wrappers (bash/sh -c "..."):
+        When a shell is invoked with -c, the shell itself is not the threat –
+        the inner script is.  We analyse the inner command instead, which avoids
+        false positives on deployment scripts like ``bash -c "npm run build"``.
+        An interactive shell (bare ``bash`` / ``sh -i``) is still flagged.
         """
         if not cmd:
             return None
@@ -867,7 +959,7 @@ class DockerEventMonitor:
         cmd_lower = cmd.lower().strip()
         cmd_base = cmd_lower.split()[0].rstrip(";").split("/")[-1]
 
-        # Always suspicious
+        # Always suspicious – check the full command string
         for pattern in ALWAYS_SUSPICIOUS_PROCESSES:
             if pattern.lower() in cmd_lower or cmd_base == pattern.lower():
                 return f"always_suspicious:{pattern}"
@@ -878,9 +970,32 @@ class DockerEventMonitor:
                 if pattern.lower() in cmd_lower:
                     return f"project_suspicious:{pattern}"
 
-        # Context suspicious
+        # Shell wrapper check: bash/sh/dash/zsh/ksh used with -c flag.
+        # In this case the shell is just a runner – analyse the inner command.
+        _shell_wrappers = {"bash", "sh", "dash", "zsh", "ksh"}
+        if cmd_base in _shell_wrappers:
+            tokens = cmd_lower.split()
+            if "-c" in tokens:
+                # Extract everything after -c as the "real" command to analyse
+                idx = tokens.index("-c")
+                inner = " ".join(tokens[idx + 1:]).strip().strip("\"'")
+                if inner:
+                    # Recursively classify the inner command (one level only)
+                    return self._classify_exec_command(inner, project)
+                # -c with no argument → treat as interactive shell
+            elif any(t in ("-i", "-l", "--login", "--interactive") for t in tokens[1:]):
+                # Explicitly interactive/login shell → suspicious
+                return f"context_suspicious:{cmd_base}"
+            else:
+                # Bare shell with no -c and no script → interactive session
+                if len(tokens) == 1:
+                    return f"context_suspicious:{cmd_base}"
+                # Shell + positional script argument (e.g. bash /opt/deploy.sh) → not suspicious
+                return None
+
+        # Context suspicious (non-shell tools)
         for pattern in CONTEXT_SUSPICIOUS_PROCESSES:
-            if cmd_base == pattern.lower():
+            if cmd_base == pattern.lower() and pattern not in _shell_wrappers:
                 return f"context_suspicious:{pattern}"
 
         return None

@@ -56,8 +56,12 @@ class AlertManager:
     def __init__(self, config: GlobalConfig, repo: IncidentRepository) -> None:
         self._config = config
         self._repo = repo
+        self._ai_analyzer = None
         # In-memory cooldown cache: dedup_key -> datetime of last alert raise
         self._last_raised: Dict[str, datetime] = {}
+
+    def register_ai_analyzer(self, ai_analyzer) -> None:
+        self._ai_analyzer = ai_analyzer
 
     # ------------------------------------------------------------------
     # Public API
@@ -160,6 +164,13 @@ class AlertManager:
         # 5b. Determine alert channels and send notifications
         channels = self._merge_channels(project, self._config)
         await self._send_alerts(incident, project, channels)
+
+        # 5c. Enqueue for AI enrichment (non-blocking best effort)
+        if self._ai_analyzer is not None:
+            try:
+                await self._ai_analyzer.enqueue(incident)
+            except Exception as exc:
+                logger.warning("Could not enqueue incident id=%s to AI analyzer: %s", incident.id, exc)
 
         return True
 

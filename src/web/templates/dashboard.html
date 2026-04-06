@@ -3,6 +3,20 @@
 {% block content %}
 <h1>Dashboard</h1>
 
+{% if latest_ai %}
+<div class="card" style="border:2px solid #ff6b6b; box-shadow:0 0 0 1px #7a1f1f inset;">
+  <h2 style="font-size:1.2rem; color:#ffd0d0; margin-bottom:0.6rem;">ALERTA IA - {{ latest_ai.threat_title }}</h2>
+  <p style="margin-bottom:0.6rem;"><strong>Descripcion:</strong> {{ latest_ai.threat_description }}</p>
+  <p style="margin-bottom:0.4rem;">
+    <strong>Severidad IA:</strong>
+    <span class="badge badge-{{ latest_ai.severity }}">{{ latest_ai.severity }}</span>
+    &nbsp; <strong>Confianza:</strong> {{ latest_ai.confidence }}%
+  </p>
+  <p style="margin-bottom:0.4rem;"><strong>Contenedor:</strong> {{ latest_ai.container_name }} | <strong>Proyecto:</strong> {{ latest_ai.project }}</p>
+  <p><strong>Recomendaciones:</strong> {{ latest_ai.recommendations }}</p>
+</div>
+{% endif %}
+
 <!-- Last 24h severity counters -->
 <h2>Last 24 Hours</h2>
 <div class="stat-cards">

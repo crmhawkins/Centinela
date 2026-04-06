@@ -51,6 +51,9 @@
     {{ total }} incident{{ 's' if total != 1 else '' }} found
     &mdash; page {{ page }} of {{ total_pages }}
   </p>
+  <div style="display:flex; justify-content:flex-end; margin-bottom:0.8rem;">
+    <a href="/incidents/purge" class="btn" style="background:#7a1f1f; color:#ffdede;">Borrar todas (2FA)</a>
+  </div>
 
   {% if incidents %}
   <table>

@@ -38,15 +38,16 @@ ALWAYS_SUSPICIOUS_PROCESSES = [
     "socat",
 ]
 
-# Processes suspicious only in certain contexts (exec-triggered or unexpected)
+# Processes suspicious only in certain contexts (exec-triggered or unexpected).
+# Removed: curl, wget, fetch  → almost always legitimate health checks / API calls;
+#           already handled by trusted_destinations filtering.
+# Removed: python, python2, python3, perl, ruby → normal app runtimes (Django,
+#           Celery, Flask, scripting); flagging them generates constant noise.
 CONTEXT_SUSPICIOUS_PROCESSES = [
-    "bash", "sh", "dash", "zsh", "ksh",
-    "curl", "wget", "fetch",
-    "python", "python2", "python3",
-    "perl", "ruby",
-    "gcc", "make", "cc",
-    "base64",
-    "xterm", "xorg",
+    "bash", "sh", "dash", "zsh", "ksh",   # interactive shells
+    "gcc", "make", "cc",                    # compilers inside web containers
+    "base64",                               # common in exfiltration one-liners
+    "xterm", "xorg",                        # GUI in a headless container
 ]
 
 # PHP execution patterns that are suspicious
@@ -173,16 +174,16 @@ class GlobalConfig:
 
     # Alert deduplication cooldowns (seconds per alert type)
     alert_cooldown: Dict[str, int] = field(default_factory=lambda: {
-        "DOCKER_EVENT_EXEC":    120,
-        "DOCKER_EVENT_RESTART": 300,
-        "DOCKER_EVENT_STOP":    60,
-        "PROCESS_SUSPICIOUS":   120,
-        "NETWORK_SPIKE":        300,
-        "NETWORK_NEW_DEST":     3600,
-        "FILESYSTEM_CHANGE":    600,
-        "FILESYSTEM_PHP_UPLOAD": 60,
-        "SECURITY_AUDIT":       86400,
-        "default":              300,
+        "DOCKER_EVENT_EXEC":    3600,    # 1 hour  (was 2 min – caused storms on deploys)
+        "DOCKER_EVENT_RESTART": 600,     # 10 min  (was 5 min)
+        "DOCKER_EVENT_STOP":    600,     # 10 min  (was 1 min – fired on every restart)
+        "PROCESS_SUSPICIOUS":   7200,    # 2 hours (was 2 min – main source of noise)
+        "NETWORK_SPIKE":        600,     # 10 min  (was 5 min)
+        "NETWORK_NEW_DEST":     3600,    # 1 hour  (unchanged)
+        "FILESYSTEM_CHANGE":    3600,    # 1 hour  (was 10 min)
+        "FILESYSTEM_PHP_UPLOAD": 300,    # 5 min   (was 1 min)
+        "SECURITY_AUDIT":       86400,   # 1 day   (unchanged)
+        "default":              3600,    # 1 hour  (was 5 min)
     })
 
     # Global alert channels (fallback if project has no channels configured)

@@ -2,11 +2,13 @@
 CENTINELA – Web Dashboard
 FastAPI application providing a read-only dashboard and incident management UI.
 """
+import base64
 import hashlib
 import hmac
 import json
 import os
 import sys
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -25,7 +27,7 @@ _SRC_DIR = Path(__file__).resolve().parent.parent
 if str(_SRC_DIR) not in sys.path:
     sys.path.insert(0, str(_SRC_DIR))
 
-from database.models import Incident  # noqa: E402
+from database.models import AIThreatAssessment, Incident  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Module-level configuration – set via configure() before starting the server
@@ -168,6 +170,42 @@ def _is_valid_session(cookie_value: Optional[str]) -> bool:
     return hmac.compare_digest(cookie_value, expected)
 
 
+def _totp_secret() -> str:
+    return os.environ.get("CENTINELA_WEB_2FA_SECRET", "").strip()
+
+
+def _hotp(secret_b32: str, counter: int, digits: int = 6) -> Optional[str]:
+    try:
+        key = base64.b32decode(secret_b32.upper(), casefold=True)
+    except Exception:
+        return None
+    msg = counter.to_bytes(8, "big")
+    digest = hmac.new(key, msg, hashlib.sha1).digest()
+    offset = digest[-1] & 0x0F
+    code_int = (
+        ((digest[offset] & 0x7F) << 24)
+        | (digest[offset + 1] << 16)
+        | (digest[offset + 2] << 8)
+        | digest[offset + 3]
+    )
+    return str(code_int % (10 ** digits)).zfill(digits)
+
+
+def _verify_totp(code: str, skew_steps: int = 1, step_seconds: int = 30) -> bool:
+    secret = _totp_secret()
+    if not secret:
+        return False
+    normalized = "".join(ch for ch in str(code) if ch.isdigit())
+    if len(normalized) != 6:
+        return False
+    now_counter = int(time.time() // step_seconds)
+    for delta in range(-skew_steps, skew_steps + 1):
+        expected = _hotp(secret, now_counter + delta, digits=6)
+        if expected and hmac.compare_digest(expected, normalized):
+            return True
+    return False
+
+
 def _get_db_session(db_url: str) -> Session:
     """Create a read-only SQLAlchemy session from the given db_url."""
     connect_args = {}
@@ -291,6 +329,7 @@ def create_web_app() -> FastAPI:
         top_containers: list = []
         top_alert_types: list = []
         recent_incidents: list = []
+        latest_ai = None
 
         try:
             db = _get_db_session(_DB_URL)
@@ -344,6 +383,12 @@ def create_web_app() -> FastAPI:
                     .limit(10)
                     .all()
                 )
+                latest_ai = (
+                    db.query(AIThreatAssessment)
+                    .order_by(desc(AIThreatAssessment.timestamp))
+                    .limit(1)
+                    .first()
+                )
             finally:
                 db.close()
         except Exception as exc:
@@ -360,6 +405,7 @@ def create_web_app() -> FastAPI:
                 "top_containers": top_containers,
                 "top_alert_types": top_alert_types,
                 "recent_incidents": recent_incidents,
+                "latest_ai": latest_ai,
             },
         )
 
@@ -434,106 +480,200 @@ def create_web_app() -> FastAPI:
         )
 
     # ------------------------------------------------------------------
-    # GET /containers — Runtime container metrics + incident summary
+    # GET/POST /incidents/purge — Delete all incidents (password + TOTP)
     # ------------------------------------------------------------------
-    @app.get("/containers", response_class=HTMLResponse)
-    async def containers_page(request: Request):
-        containers = []
-        by_container = {}
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
-        since_7d = now - timedelta(days=7)
+    @app.get("/incidents/purge", response_class=HTMLResponse)
+    async def purge_incidents_page(request: Request):
+        return templates.TemplateResponse(
+            request=request,
+            name="purge_incidents.html",
+            context={"error": "", "ok_message": "", "requires_2fa": bool(_totp_secret())},
+        )
 
-        try:
-            # Docker SDK calls are blocking; run off the event loop and cap wait time.
-            containers = await asyncio.wait_for(
-                asyncio.to_thread(_collect_container_runtime_metrics),
-                timeout=8.0,
+    @app.post("/incidents/purge", response_class=HTMLResponse)
+    async def purge_incidents_submit(
+        request: Request,
+        password: str = Form(...),
+        totp_code: str = Form(""),
+    ):
+        _, expected_pass = _auth_credentials()
+        if password != expected_pass:
+            return templates.TemplateResponse(
+                request=request,
+                name="purge_incidents.html",
+                context={
+                    "error": "Contrasena incorrecta.",
+                    "ok_message": "",
+                    "requires_2fa": bool(_totp_secret()),
+                },
+                status_code=401,
             )
-        except asyncio.TimeoutError:
-            import logging
-            logging.getLogger("centinela.web").warning(
-                "Container metrics timeout (>8s). Returning empty metrics snapshot."
-            )
-            containers = []
-        except Exception as exc:
-            import logging
-            logging.getLogger("centinela.web").error("Container metrics error: %s", exc)
 
+        if not _totp_secret():
+            return templates.TemplateResponse(
+                request=request,
+                name="purge_incidents.html",
+                context={
+                    "error": "2FA no configurado. Define CENTINELA_WEB_2FA_SECRET.",
+                    "ok_message": "",
+                    "requires_2fa": False,
+                },
+                status_code=400,
+            )
+
+        if not _verify_totp(totp_code):
+            return templates.TemplateResponse(
+                request=request,
+                name="purge_incidents.html",
+                context={
+                    "error": "Codigo 2FA invalido.",
+                    "ok_message": "",
+                    "requires_2fa": True,
+                },
+                status_code=401,
+            )
+
+        deleted = 0
         try:
             db = _get_db_session(_DB_URL)
             try:
-                total_rows = (
-                    db.query(Incident.container_name, func.count(Incident.id))
-                    .group_by(Incident.container_name)
-                    .all()
-                )
-                open_rows = (
-                    db.query(Incident.container_name, func.count(Incident.id))
-                    .filter(Incident.status != "closed")
-                    .group_by(Incident.container_name)
-                    .all()
-                )
-                critical_rows = (
-                    db.query(Incident.container_name, func.count(Incident.id))
-                    .filter(Incident.severity == "critical")
-                    .group_by(Incident.container_name)
-                    .all()
-                )
-                last_7d_rows = (
-                    db.query(Incident.container_name, func.count(Incident.id))
-                    .filter(Incident.timestamp >= since_7d)
-                    .group_by(Incident.container_name)
-                    .all()
-                )
-
-                for name, cnt in total_rows:
-                    by_container.setdefault(name, {})["total"] = cnt
-                for name, cnt in open_rows:
-                    by_container.setdefault(name, {})["open"] = cnt
-                for name, cnt in critical_rows:
-                    by_container.setdefault(name, {})["critical"] = cnt
-                for name, cnt in last_7d_rows:
-                    by_container.setdefault(name, {})["last_7d"] = cnt
+                deleted = db.query(Incident).delete(synchronize_session=False)
+                db.commit()
             finally:
                 db.close()
         except Exception as exc:
             import logging
-            logging.getLogger("centinela.web").error("Container incident summary error: %s", exc)
+            logging.getLogger("centinela.web").error("Purge incidents error: %s", exc)
+            return templates.TemplateResponse(
+                request=request,
+                name="purge_incidents.html",
+                context={
+                    "error": "No se pudieron borrar incidencias. Revisa logs.",
+                    "ok_message": "",
+                    "requires_2fa": True,
+                },
+                status_code=500,
+            )
 
-        for row in containers:
-            container_name = str(row.get("name") or "unknown")
-            row["name"] = container_name
-            row["id"] = str(row.get("id") or "—")
-            row["status"] = str(row.get("status") or "unknown")
-            row["image"] = str(row.get("image") or "unknown")
+        return templates.TemplateResponse(
+            request=request,
+            name="purge_incidents.html",
+            context={
+                "error": "",
+                "ok_message": f"Incidencias eliminadas: {deleted}",
+                "requires_2fa": True,
+            },
+        )
 
-            try:
-                row["cpu_pct"] = float(row.get("cpu_pct") or 0.0)
-            except (TypeError, ValueError):
-                row["cpu_pct"] = 0.0
-            try:
-                row["mem_pct"] = float(row.get("mem_pct") or 0.0)
-            except (TypeError, ValueError):
-                row["mem_pct"] = 0.0
-
-            row["mem_usage_human"] = row.get("mem_usage_human") or "—"
-            row["mem_limit_human"] = row.get("mem_limit_human") or "—"
-            row["disk_rw_human"] = row.get("disk_rw_human") or "—"
-            row["net_rx_human"] = row.get("net_rx_human") or "—"
-            row["net_tx_human"] = row.get("net_tx_human") or "—"
-
-            stats = by_container.get(container_name, {})
-            row["inc_total"] = stats.get("total", 0)
-            row["inc_open"] = stats.get("open", 0)
-            row["inc_critical"] = stats.get("critical", 0)
-            row["inc_last_7d"] = stats.get("last_7d", 0)
-
+    # ------------------------------------------------------------------
+    # GET /containers — Runtime container metrics + incident summary
+    # ------------------------------------------------------------------
+    @app.get("/containers", response_class=HTMLResponse)
+    async def containers_page(request: Request):
         try:
+            containers = []
+            by_container = {}
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
+            since_7d = now - timedelta(days=7)
+
+            try:
+                # Docker SDK calls are blocking; run off the event loop and cap wait time.
+                containers = await asyncio.wait_for(
+                    asyncio.to_thread(_collect_container_runtime_metrics),
+                    timeout=8.0,
+                )
+            except asyncio.TimeoutError:
+                import logging
+                logging.getLogger("centinela.web").warning(
+                    "Container metrics timeout (>8s). Returning empty metrics snapshot."
+                )
+                containers = []
+            except Exception as exc:
+                import logging
+                logging.getLogger("centinela.web").error("Container metrics error: %s", exc)
+                containers = []
+
+            try:
+                db = _get_db_session(_DB_URL)
+                try:
+                    total_rows = (
+                        db.query(Incident.container_name, func.count(Incident.id))
+                        .group_by(Incident.container_name)
+                        .all()
+                    )
+                    open_rows = (
+                        db.query(Incident.container_name, func.count(Incident.id))
+                        .filter(Incident.status != "closed")
+                        .group_by(Incident.container_name)
+                        .all()
+                    )
+                    critical_rows = (
+                        db.query(Incident.container_name, func.count(Incident.id))
+                        .filter(Incident.severity == "critical")
+                        .group_by(Incident.container_name)
+                        .all()
+                    )
+                    last_7d_rows = (
+                        db.query(Incident.container_name, func.count(Incident.id))
+                        .filter(Incident.timestamp >= since_7d)
+                        .group_by(Incident.container_name)
+                        .all()
+                    )
+
+                    for name, cnt in total_rows:
+                        by_container.setdefault(name, {})["total"] = cnt
+                    for name, cnt in open_rows:
+                        by_container.setdefault(name, {})["open"] = cnt
+                    for name, cnt in critical_rows:
+                        by_container.setdefault(name, {})["critical"] = cnt
+                    for name, cnt in last_7d_rows:
+                        by_container.setdefault(name, {})["last_7d"] = cnt
+                finally:
+                    db.close()
+            except Exception as exc:
+                import logging
+                logging.getLogger("centinela.web").error("Container incident summary error: %s", exc)
+
+            if not isinstance(containers, list):
+                containers = []
+
+            normalized_rows = []
+            for row in containers:
+                if not isinstance(row, dict):
+                    continue
+                container_name = str(row.get("name") or "unknown")
+                row["name"] = container_name
+                row["id"] = str(row.get("id") or "—")
+                row["status"] = str(row.get("status") or "unknown")
+                row["image"] = str(row.get("image") or "unknown")
+
+                try:
+                    row["cpu_pct"] = float(row.get("cpu_pct") or 0.0)
+                except (TypeError, ValueError):
+                    row["cpu_pct"] = 0.0
+                try:
+                    row["mem_pct"] = float(row.get("mem_pct") or 0.0)
+                except (TypeError, ValueError):
+                    row["mem_pct"] = 0.0
+
+                row["mem_usage_human"] = row.get("mem_usage_human") or "—"
+                row["mem_limit_human"] = row.get("mem_limit_human") or "—"
+                row["disk_rw_human"] = row.get("disk_rw_human") or "—"
+                row["net_rx_human"] = row.get("net_rx_human") or "—"
+                row["net_tx_human"] = row.get("net_tx_human") or "—"
+
+                stats = by_container.get(container_name, {})
+                row["inc_total"] = int(stats.get("total", 0) or 0)
+                row["inc_open"] = int(stats.get("open", 0) or 0)
+                row["inc_critical"] = int(stats.get("critical", 0) or 0)
+                row["inc_last_7d"] = int(stats.get("last_7d", 0) or 0)
+                normalized_rows.append(row)
+
             return templates.TemplateResponse(
                 request=request,
                 name="containers.html",
                 context={
-                    "containers": containers,
+                    "containers": normalized_rows,
                 },
             )
         except Exception as exc:
