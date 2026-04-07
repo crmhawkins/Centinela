@@ -619,11 +619,18 @@ class DockerEventMonitor:
                 asyncio.ensure_future(cb(container_name))
             return
 
+        # Capture last logs before the container disappears
+        loop = asyncio.get_event_loop()
+        last_logs = await loop.run_in_executor(
+            None, self._fetch_last_logs, container_id
+        )
+
         evidence = {
             "container": container_name,
             "container_id": container_id[:12],
             "exit_code": exit_code,
             "image": attrs.get("image", ""),
+            "last_logs": last_logs or "(sin logs disponibles)",
         }
 
         await self._alert_manager.raise_alert(
@@ -810,6 +817,23 @@ class DockerEventMonitor:
     # ------------------------------------------------------------------
     # Helper: load container healthcheck command
     # ------------------------------------------------------------------
+
+    def _fetch_last_logs(self, container_id: str, lines: int = 30) -> str:
+        """
+        Synchronously fetch the last N log lines of a container (works even
+        after the container has stopped, as long as it hasn't been removed).
+        Returns an empty string on any error.
+        """
+        try:
+            client = docker.from_env()
+            container = client.containers.get(container_id)
+            raw = container.logs(tail=lines, stdout=True, stderr=True)
+            if isinstance(raw, bytes):
+                return raw.decode("utf-8", errors="replace").strip()
+            return str(raw).strip()
+        except Exception as exc:
+            logger.debug("Could not fetch logs for %s: %s", container_id, exc)
+            return ""
 
     def _load_container_healthcheck(
         self, container_id: str, container_name: str
