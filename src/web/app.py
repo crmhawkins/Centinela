@@ -80,66 +80,82 @@ def _safe_cpu_percent(stats: Dict[str, Any]) -> float:
     return 0.0
 
 
+def _fetch_single_container_metrics(container) -> dict:
+    """Fetch stats for one container. Called in parallel via ThreadPoolExecutor."""
+    name = container.name
+    short_id = (container.id or "")[:12]
+    image = getattr(container.image, "tags", []) or []
+    image_label = image[0] if image else (
+        container.image.short_id if container.image else "unknown"
+    )
+    status = container.status
+    cpu_pct = 0.0
+    mem_usage = None
+    mem_limit = None
+    mem_pct = 0.0
+    net_rx = 0
+    net_tx = 0
+    try:
+        stats = container.stats(stream=False)
+        cpu_pct = _safe_cpu_percent(stats)
+        mem = stats.get("memory_stats", {}) or {}
+        mem_usage = mem.get("usage")
+        mem_limit = mem.get("limit")
+        if mem_usage is not None and mem_limit:
+            mem_pct = (float(mem_usage) / float(mem_limit)) * 100.0
+        networks = stats.get("networks", {}) or {}
+        for iface in networks.values():
+            net_rx += int(iface.get("rx_bytes", 0) or 0)
+            net_tx += int(iface.get("tx_bytes", 0) or 0)
+    except Exception:
+        pass
+    return {
+        "name": name,
+        "id": short_id,
+        "image": image_label,
+        "status": status,
+        "cpu_pct": round(cpu_pct, 2),
+        "mem_usage_human": _bytes_to_human(mem_usage),
+        "mem_limit_human": _bytes_to_human(mem_limit),
+        "mem_pct": round(mem_pct, 2),
+        "disk_rw_human": _bytes_to_human(None),
+        "net_rx_human": _bytes_to_human(net_rx),
+        "net_tx_human": _bytes_to_human(net_tx),
+    }
+
+
 def _collect_container_runtime_metrics() -> list:
-    rows = []
+    """
+    Collect CPU/mem/net stats for all running containers in parallel.
+    Uses a ThreadPoolExecutor so all container.stats() calls happen
+    concurrently instead of sequentially (critical for 100+ containers).
+    """
+    import concurrent.futures
     client = None
     try:
         client = docker.from_env()
-        for container in client.containers.list():
-            name = container.name
-            short_id = (container.id or "")[:12]
-            image = getattr(container.image, "tags", []) or []
-            image_label = image[0] if image else (container.image.short_id if container.image else "unknown")
-            status = container.status
-
-            cpu_pct = 0.0
-            mem_usage = None
-            mem_limit = None
-            mem_pct = 0.0
-            net_rx = 0
-            net_tx = 0
-            disk_rw = None
-
-            try:
-                stats = container.stats(stream=False)
-                cpu_pct = _safe_cpu_percent(stats)
-                mem = stats.get("memory_stats", {}) or {}
-                mem_usage = mem.get("usage")
-                mem_limit = mem.get("limit")
-                if mem_usage is not None and mem_limit:
-                    mem_pct = (float(mem_usage) / float(mem_limit)) * 100.0
-                networks = stats.get("networks", {}) or {}
-                for iface in networks.values():
-                    net_rx += int(iface.get("rx_bytes", 0) or 0)
-                    net_tx += int(iface.get("tx_bytes", 0) or 0)
-            except Exception:
-                pass
-
-            # NOTE: inspect_container(..., size=True) can be very expensive on hosts
-            # with many containers/layers and may block the dashboard route.
-            # We keep disk as unavailable by default to preserve responsiveness.
-            disk_rw = None
-
-            rows.append({
-                "name": name,
-                "id": short_id,
-                "image": image_label,
-                "status": status,
-                "cpu_pct": round(cpu_pct, 2),
-                "mem_usage_human": _bytes_to_human(mem_usage),
-                "mem_limit_human": _bytes_to_human(mem_limit),
-                "mem_pct": round(mem_pct, 2),
-                "disk_rw_human": _bytes_to_human(disk_rw),
-                "net_rx_human": _bytes_to_human(net_rx),
-                "net_tx_human": _bytes_to_human(net_tx),
-            })
+        containers = client.containers.list()
+        if not containers:
+            return []
+        # Parallelise: fetch stats for all containers simultaneously.
+        # Each stats() call takes ~1s; parallel = total ≈ 1s regardless of count.
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(containers), 32)) as pool:
+            futures = {pool.submit(_fetch_single_container_metrics, c): c for c in containers}
+            rows = []
+            for future in concurrent.futures.as_completed(futures, timeout=10):
+                try:
+                    rows.append(future.result())
+                except Exception:
+                    pass
+        return sorted(rows, key=lambda r: r["name"])
+    except Exception:
+        return []
     finally:
         if client is not None:
             try:
                 client.close()
             except Exception:
                 pass
-    return sorted(rows, key=lambda r: r["name"])
 
 
 def configure(db_url: str) -> None:
@@ -643,7 +659,7 @@ def create_web_app() -> FastAPI:
                 # Docker SDK calls are blocking; run off the event loop and cap wait time.
                 containers = await asyncio.wait_for(
                     asyncio.to_thread(_collect_container_runtime_metrics),
-                    timeout=8.0,
+                    timeout=15.0,
                 )
             except asyncio.TimeoutError:
                 import logging
