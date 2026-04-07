@@ -111,6 +111,31 @@ class IncidentRepository:
             )
             return (count or 0) > 0
 
+    def get_incidents_for_digest(self, since_hours: int = 24) -> List[Incident]:
+        """
+        Return up to 500 incidents created in the last *since_hours* hours,
+        ordered by severity (critical first) then timestamp descending.
+        No status filter – all statuses are included.
+        Used by the daily AI digest batch.
+        """
+        _severity_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+        cutoff = _utcnow() - timedelta(hours=since_hours)
+        with self._Session() as session:
+            stmt = (
+                select(Incident)
+                .where(Incident.timestamp >= cutoff)
+                .order_by(Incident.timestamp.desc())
+                .limit(500)
+            )
+            rows = list(session.scalars(stmt).all())
+
+        # Sort in Python so we don't depend on a DB-level severity enum order.
+        rows.sort(key=lambda inc: (
+            _severity_order.get((inc.severity or "low").lower(), 99),
+            -(inc.timestamp.timestamp() if inc.timestamp else 0),
+        ))
+        return rows
+
     # ------------------------------------------------------------------
     # Network baseline
     # ------------------------------------------------------------------
@@ -208,6 +233,47 @@ class IncidentRepository:
             session.commit()
             return result.rowcount
 
+    def auto_close_stale_low_severity(self, older_than_days: int = 3) -> int:
+        """Bulk-close new low-severity incidents older than N days. Returns count updated."""
+        cutoff = _utcnow() - timedelta(days=older_than_days)
+        with self._Session() as session:
+            result = session.execute(
+                update(Incident)
+                .where(Incident.severity == "low")
+                .where(Incident.status == "new")
+                .where(Incident.timestamp < cutoff)
+                .values(status="closed")
+            )
+            session.commit()
+            return result.rowcount
+
+    def auto_close_repeated_audit_findings(self) -> int:
+        """
+        For SECURITY_AUDIT incidents: if the same dedup_key already has at least one
+        incident with status in ("reviewed", "closed"), bulk-close any NEW incidents
+        with that same dedup_key.
+        Returns count of rows updated.
+        """
+        with self._Session() as session:
+            known_keys_rows = session.scalars(
+                select(Incident.dedup_key)
+                .where(Incident.alert_type == "SECURITY_AUDIT")
+                .where(Incident.status.in_(("reviewed", "closed")))
+                .distinct()
+            ).all()
+            known_keys = set(known_keys_rows)
+            if not known_keys:
+                return 0
+            result = session.execute(
+                update(Incident)
+                .where(Incident.dedup_key.in_(known_keys))
+                .where(Incident.status == "new")
+                .where(Incident.alert_type == "SECURITY_AUDIT")
+                .values(status="closed")
+            )
+            session.commit()
+            return result.rowcount
+
     def count_new_destinations_in_window(
         self, container_name: str, window_minutes: int = 60
     ) -> int:
@@ -270,3 +336,58 @@ class IncidentRepository:
                 .where(FilesystemSnapshot.container_name == container_name)
                 .where(FilesystemSnapshot.file_path == file_path)
             )
+
+    # ------------------------------------------------------------------
+    # Grouped / aggregated incident view
+    # ------------------------------------------------------------------
+
+    def get_incident_groups(
+        self,
+        since_days: int = 7,
+        status: Optional[str] = None,
+    ) -> List[dict]:
+        """
+        Return incidents aggregated by (alert_type, container_name, rule, severity).
+        Each element is a dict with keys: alert_type, container_name, rule, severity,
+        count, first_seen, last_seen.  Ordered by count DESC, limited to 200 rows.
+        """
+        cutoff = _utcnow() - timedelta(days=since_days)
+        with self._Session() as session:
+            stmt = (
+                select(
+                    Incident.alert_type,
+                    Incident.container_name,
+                    Incident.rule,
+                    Incident.severity,
+                    func.count(Incident.id).label("count"),
+                    func.min(Incident.timestamp).label("first_seen"),
+                    func.max(Incident.timestamp).label("last_seen"),
+                )
+                .where(Incident.timestamp >= cutoff)
+            )
+            if status:
+                stmt = stmt.where(Incident.status == status)
+            stmt = (
+                stmt
+                .group_by(
+                    Incident.alert_type,
+                    Incident.container_name,
+                    Incident.rule,
+                    Incident.severity,
+                )
+                .order_by(func.count(Incident.id).desc())
+                .limit(200)
+            )
+            rows = session.execute(stmt).all()
+            return [
+                {
+                    "alert_type": r.alert_type,
+                    "container_name": r.container_name,
+                    "rule": r.rule,
+                    "severity": r.severity,
+                    "count": r.count,
+                    "first_seen": r.first_seen,
+                    "last_seen": r.last_seen,
+                }
+                for r in rows
+            ]

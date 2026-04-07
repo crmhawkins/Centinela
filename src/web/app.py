@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 from urllib.parse import quote
 
+import asyncio
 import docker
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
@@ -33,6 +34,7 @@ from database.models import AIThreatAssessment, Incident  # noqa: E402
 # Module-level configuration – set via configure() before starting the server
 # ---------------------------------------------------------------------------
 _DB_URL: str = ""
+_AI_ANALYZER = None
 
 _TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
@@ -144,6 +146,12 @@ def configure(db_url: str) -> None:
     """Called from main.py before the uvicorn server starts."""
     global _DB_URL
     _DB_URL = db_url
+
+
+def configure_ai_analyzer(analyzer) -> None:
+    """Called from main.py to register the AIThreatAnalyzer singleton."""
+    global _AI_ANALYZER
+    _AI_ANALYZER = analyzer
 
 
 def _auth_credentials() -> tuple[str, str]:
@@ -316,10 +324,19 @@ def create_web_app() -> FastAPI:
         return response
 
     # ------------------------------------------------------------------
+    # POST /ai/run — Trigger AI analysis immediately
+    # ------------------------------------------------------------------
+    @app.post("/ai/run")
+    async def ai_run(request: Request):
+        if _AI_ANALYZER is not None:
+            asyncio.create_task(_AI_ANALYZER.run_digest_now())
+        return RedirectResponse(url="/?ai_triggered=1", status_code=303)
+
+    # ------------------------------------------------------------------
     # GET / — Dashboard
     # ------------------------------------------------------------------
     @app.get("/", response_class=HTMLResponse)
-    async def dashboard(request: Request):
+    async def dashboard(request: Request, ai_triggered: int = 0):
         now = datetime.now(timezone.utc).replace(tzinfo=None)
         since_24h = now - timedelta(hours=24)
         since_7d = now - timedelta(days=7)
@@ -406,6 +423,7 @@ def create_web_app() -> FastAPI:
                 "top_alert_types": top_alert_types,
                 "recent_incidents": recent_incidents,
                 "latest_ai": latest_ai,
+                "ai_triggered": ai_triggered,
             },
         )
 
@@ -476,6 +494,88 @@ def create_web_app() -> FastAPI:
                 "status": status or "",
                 "alert_type": alert_type or "",
                 "active_filters": active_filters,
+            },
+        )
+
+    # ------------------------------------------------------------------
+    # GET /incidents/grouped — Aggregated incident groups
+    # ------------------------------------------------------------------
+    @app.get("/incidents/grouped", response_class=HTMLResponse)
+    async def incident_grouped(
+        request: Request,
+        since_days: int = 7,
+        severity: Optional[str] = None,
+        status: Optional[str] = None,
+    ):
+        if since_days not in (1, 7, 30):
+            since_days = 7
+
+        groups: list = []
+        total_incidents: int = 0
+
+        try:
+            db = _get_db_session(_DB_URL)
+            try:
+                now = datetime.now(timezone.utc).replace(tzinfo=None)
+                cutoff = now - timedelta(days=since_days)
+
+                q = (
+                    db.query(
+                        Incident.alert_type,
+                        Incident.container_name,
+                        Incident.rule,
+                        Incident.severity,
+                        func.count(Incident.id).label("count"),
+                        func.min(Incident.timestamp).label("first_seen"),
+                        func.max(Incident.timestamp).label("last_seen"),
+                    )
+                    .filter(Incident.timestamp >= cutoff)
+                )
+                if severity:
+                    q = q.filter(Incident.severity == severity.lower())
+                if status:
+                    q = q.filter(Incident.status == status.lower())
+                rows = (
+                    q
+                    .group_by(
+                        Incident.alert_type,
+                        Incident.container_name,
+                        Incident.rule,
+                        Incident.severity,
+                    )
+                    .order_by(desc("count"))
+                    .limit(200)
+                    .all()
+                )
+                groups = [
+                    {
+                        "alert_type": r.alert_type,
+                        "container_name": r.container_name,
+                        "rule": r.rule,
+                        "severity": r.severity,
+                        "count": r.count,
+                        "first_seen": r.first_seen,
+                        "last_seen": r.last_seen,
+                    }
+                    for r in rows
+                ]
+                total_incidents = sum(g["count"] for g in groups)
+            finally:
+                db.close()
+        except Exception as exc:
+            import logging
+            logging.getLogger("centinela.web").error("Incident grouped DB error: %s", exc)
+
+        return templates.TemplateResponse(
+            request=request,
+            name="grouped.html",
+            context={
+                "groups": groups,
+                "since_days": since_days,
+                "severity": severity or "",
+                "status": status or "",
+                "total_groups": len(groups),
+                "total_incidents": total_incidents,
             },
         )
 

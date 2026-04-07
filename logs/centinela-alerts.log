@@ -9,3 +9,5 @@ Traceback (most recent call last):
     ^^^^^^^^^^^^
 AttributeError: 'Logger' object has no attribute 'alert'
 2026-03-26T12:12:50 | [35mALERT   [0m | centinela.monitors.docker_events | DOCKER EXEC detected: container=tuya_laravel_app exec_id=a03affe3e03a cmd='bash -c nc -h 2>&1 || true' project=tuya-laravel
+2026-04-07T17:56:47 | [41mCRITICAL[0m | centinela.main | Cannot connect to Docker daemon: Error while fetching server API version: (2, 'CreateFile', 'El sistema no puede encontrar el archivo especificado.')
+2026-04-07T17:57:11 | [41mCRITICAL[0m | centinela.main | Cannot connect to Docker daemon: Error while fetching server API version: (2, 'CreateFile', 'El sistema no puede encontrar el archivo especificado.')

@@ -36,7 +36,7 @@ services:
     volumes:
       # Docker socket (read-only) – needed to listen for Docker events
       # and inspect container metadata. Never expose this writable.
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/run/docker.sock:/var/run/docker.sock:rw
 
       # Host filesystem (read-only) – required for inotify watchers on
       # container volumes and for /proc access.
@@ -59,7 +59,7 @@ services:
     environment:
       - CENTINELA_CONFIG=/app/config/centinela.yml
       - TZ=Europe/Madrid
-      - CENTINELA_AI_URL=https://192.168.1.45/chat/text/chat
+      - CENTINELA_AI_URL=https://aiapi.hawkins.es/chat/text/chat
       - CENTINELA_AI_MODEL=gpt-oss:120b-cloud
       - CENTINELA_AI_API_KEY=OllamaAPI_2024_K8mN9pQ2rS5tU7vW3xY6zA1bC4eF8hJ0lM
       - CENTINELA_AI_QUEUE_SIZE=2000

@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block head_extra %}<meta http-equiv="refresh" content="60">{% endblock %}
+{% block content %}
+<h1>Vista Agrupada &ndash; Últimos {{ since_days }} día{{ 's' if since_days != 1 else '' }}</h1>
+
+<!-- Summary bar -->
+<div class="card" style="padding: 0.9rem 1.25rem; margin-bottom: 1rem;">
+  <span style="color:#a0a8d0; font-size:0.92rem;">
+    <strong style="color:#c0c8f0;">{{ total_groups }}</strong> grupos
+    &middot;
+    <strong style="color:#c0c8f0;">{{ total_incidents }}</strong> incidentes totales
+  </span>
+</div>
+
+<!-- Filter form -->
+<div class="card">
+  <form method="get" action="/incidents/grouped" class="filter-form">
+    <label>
+      Periodo
+      <select name="since_days">
+        <option value="1"  {% if since_days == 1  %}selected{% endif %}>Último día</option>
+        <option value="7"  {% if since_days == 7  %}selected{% endif %}>Últimos 7 días</option>
+        <option value="30" {% if since_days == 30 %}selected{% endif %}>Últimos 30 días</option>
+      </select>
+    </label>
+    <label>
+      Severidad
+      <select name="severity">
+        <option value="" {% if not severity %}selected{% endif %}>Todas</option>
+        <option value="critical" {% if severity == "critical" %}selected{% endif %}>Critical</option>
+        <option value="high"     {% if severity == "high"     %}selected{% endif %}>High</option>
+        <option value="medium"   {% if severity == "medium"   %}selected{% endif %}>Medium</option>
+        <option value="low"      {% if severity == "low"      %}selected{% endif %}>Low</option>
+      </select>
+    </label>
+    <label>
+      Estado
+      <select name="status">
+        <option value="" {% if not status %}selected{% endif %}>Todos</option>
+        <option value="new"      {% if status == "new"      %}selected{% endif %}>New</option>
+        <option value="reviewed" {% if status == "reviewed" %}selected{% endif %}>Reviewed</option>
+        <option value="closed"   {% if status == "closed"   %}selected{% endif %}>Closed</option>
+      </select>
+    </label>
+    <button type="submit" class="btn btn-primary">Filtrar</button>
+    {% if severity or status or since_days != 7 %}
+    <a href="/incidents/grouped" class="btn" style="background:#2a2a50; color:#a0b0ff;">Limpiar</a>
+    {% endif %}
+  </form>
+
+  {% if groups %}
+  <table>
+    <thead>
+      <tr>
+        <th>Severidad</th>
+        <th>Tipo</th>
+        <th>Contenedor</th>
+        <th>Regla</th>
+        <th style="text-align:right;">
+          Ocurrencias&nbsp;&#9660;
+        </th>
+        <th>Primera vez</th>
+        <th>Última vez</th>
+        <th>Acción</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for g in groups %}
+      <tr>
+        <td>
+          {% set sev = g.severity | lower if g.severity else "unknown" %}
+          {% if sev == "critical" %}
+            <span class="badge badge-critical">critical</span>
+          {% elif sev == "high" %}
+            <span class="badge badge-high">high</span>
+          {% elif sev == "medium" %}
+            <span class="badge badge-medium">medium</span>
+          {% elif sev == "low" %}
+            <span class="badge badge-low">low</span>
+          {% else %}
+            <span class="badge badge-unknown">{{ g.severity or '—' }}</span>
+          {% endif %}
+        </td>
+        <td>{{ g.alert_type or '—' }}</td>
+        <td style="color:#8090c0;">{{ g.container_name or '—' }}</td>
+        <td style="max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"
+            title="{{ g.rule or '' }}">
+          {{ g.rule or '—' }}
+        </td>
+        <td style="text-align:right; font-weight:700; color:#c0c8f0;">
+          {{ g.count }}
+        </td>
+        <td style="white-space:nowrap; color:#7080a0; font-size:0.82rem;">
+          {{ g.first_seen.strftime('%Y-%m-%d %H:%M') if g.first_seen else '—' }}
+        </td>
+        <td style="white-space:nowrap; color:#7080a0; font-size:0.82rem;">
+          {{ g.last_seen.strftime('%Y-%m-%d %H:%M') if g.last_seen else '—' }}
+        </td>
+        <td>
+          <a href="/incidents?alert_type={{ g.alert_type | urlencode }}&amp;container_name={{ g.container_name | urlencode }}"
+             class="btn btn-primary btn-sm">
+            Ver
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-state">No hay grupos de incidentes para los filtros seleccionados.</p>
+  {% endif %}
+</div>
+{% endblock %}

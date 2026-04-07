@@ -25,7 +25,7 @@ from monitors.filesystem_monitor import FilesystemMonitor
 from monitors.security_audit import SecurityAuditMonitor
 from monitors.self_integrity import SelfIntegrityMonitor
 from logging_manager.logger import setup_logging
-from web.app import create_web_app, configure as configure_web
+from web.app import create_web_app, configure as configure_web, configure_ai_analyzer
 from ai.analyzer import AIThreatAnalyzer
 
 logger = logging.getLogger("centinela.main")
@@ -126,15 +126,13 @@ async def _cleanup_loop(repo: IncidentRepository) -> None:
     while True:
         try:
             loop = asyncio.get_running_loop()
-            deleted_samples = await loop.run_in_executor(
-                None, repo.prune_network_samples, 336  # 14 days
-            )
-            deleted_incidents = await loop.run_in_executor(
-                None, repo.prune_closed_incidents, 90  # 90 days
-            )
+            deleted_samples = await loop.run_in_executor(None, repo.prune_network_samples, 336)
+            deleted_incidents = await loop.run_in_executor(None, repo.prune_closed_incidents, 7)
+            auto_closed_low = await loop.run_in_executor(None, repo.auto_close_stale_low_severity, 3)
+            auto_closed_audit = await loop.run_in_executor(None, repo.auto_close_repeated_audit_findings)
             logger.info(
-                "DB cleanup: removed %d old network samples, %d closed incidents.",
-                deleted_samples, deleted_incidents,
+                "DB cleanup: removed %d samples, %d old closed incidents; auto-closed %d stale-low + %d repeated-audit findings.",
+                deleted_samples, deleted_incidents, auto_closed_low, auto_closed_audit,
             )
         except asyncio.CancelledError:
             raise
@@ -184,6 +182,7 @@ async def main() -> None:
     logger.info("Alert manager initialised.")
     ai_analyzer = AIThreatAnalyzer(repository)
     alert_manager.register_ai_analyzer(ai_analyzer)
+    configure_ai_analyzer(ai_analyzer)
     logger.info("AI threat analyzer initialised.")
 
     # BUG FIX: was ProjectRegistry(config) – constructor expects projects:list, not GlobalConfig

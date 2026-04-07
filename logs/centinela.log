@@ -229,3 +229,9 @@ AttributeError: 'Logger' object has no attribute 'alert'
 2026-03-26T12:12:50 | [33mWARNING [0m | centinela.alerts.manager | No alert channels configured for incident id=13 project=tuya-laravel
 2026-03-26T12:12:50 | [32mINFO    [0m | centinela.monitors.process_monitor | ProcessMonitor: running immediate check on tuya_laravel_app
 2026-03-26T12:17:39 | [32mINFO    [0m | centinela.main | DB cleanup: removed 0 old network samples, 0 closed incidents.
+2026-04-07T17:56:47 | [32mINFO    [0m | centinela | Logging initialised -> D:\proyectos\programasivan\Centinela\Centinela\logs
+2026-04-07T17:56:47 | [32mINFO    [0m | centinela.main | CENTINELA starting up – logging initialised.
+2026-04-07T17:56:47 | [41mCRITICAL[0m | centinela.main | Cannot connect to Docker daemon: Error while fetching server API version: (2, 'CreateFile', 'El sistema no puede encontrar el archivo especificado.')
+2026-04-07T17:57:11 | [32mINFO    [0m | centinela | Logging initialised -> D:\proyectos\programasivan\Centinela\Centinela\logs
+2026-04-07T17:57:11 | [32mINFO    [0m | centinela.main | CENTINELA starting up – logging initialised.
+2026-04-07T17:57:11 | [41mCRITICAL[0m | centinela.main | Cannot connect to Docker daemon: Error while fetching server API version: (2, 'CreateFile', 'El sistema no puede encontrar el archivo especificado.')

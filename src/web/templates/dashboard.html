@@ -3,18 +3,102 @@
 {% block content %}
 <h1>Dashboard</h1>
 
-{% if latest_ai %}
-<div class="card" style="border:2px solid #ff6b6b; box-shadow:0 0 0 1px #7a1f1f inset;">
-  <h2 style="font-size:1.2rem; color:#ffd0d0; margin-bottom:0.6rem;">ALERTA IA - {{ latest_ai.threat_title }}</h2>
-  <p style="margin-bottom:0.6rem;"><strong>Descripcion:</strong> {{ latest_ai.threat_description }}</p>
-  <p style="margin-bottom:0.4rem;">
-    <strong>Severidad IA:</strong>
-    <span class="badge badge-{{ latest_ai.severity }}">{{ latest_ai.severity }}</span>
-    &nbsp; <strong>Confianza:</strong> {{ latest_ai.confidence }}%
-  </p>
-  <p style="margin-bottom:0.4rem;"><strong>Contenedor:</strong> {{ latest_ai.container_name }} | <strong>Proyecto:</strong> {{ latest_ai.project }}</p>
-  <p><strong>Recomendaciones:</strong> {{ latest_ai.recommendations }}</p>
+{# ------------------------------------------------------------------ #}
+{# AI Security Digest — prominent banner at top of dashboard          #}
+{# ------------------------------------------------------------------ #}
+
+{% if ai_triggered %}
+<div style="background:#1a4a2e; border:1px solid #2ecc71; border-radius:6px; padding:0.75rem 1.1rem; margin-bottom:1.2rem; color:#a8f0c6; font-size:0.95rem;">
+  &#10003; <strong>Análisis IA iniciado.</strong> Los resultados aparecerán en breve.
 </div>
+{% endif %}
+
+{% if latest_ai %}
+  {% set title = latest_ai.threat_title | default('') %}
+  {% if 'ROJO' in title %}
+    {% set ai_bg = '#3a0a0a' %}
+    {% set ai_border = '#e53e3e' %}
+    {% set ai_header_color = '#fc8181' %}
+    {% set ai_estado_label = '🔴 ESTADO: ROJO — AMENAZA ACTIVA' %}
+    {% set ai_label_color = '#feb2b2' %}
+  {% elif 'AMARILLO' in title %}
+    {% set ai_bg = '#3a2a00' %}
+    {% set ai_border = '#d69e2e' %}
+    {% set ai_header_color = '#f6e05e' %}
+    {% set ai_estado_label = '🟡 ESTADO: AMARILLO — ATENCIÓN REQUERIDA' %}
+    {% set ai_label_color = '#faf089' %}
+  {% elif 'VERDE' in title %}
+    {% set ai_bg = '#0a2a14' %}
+    {% set ai_border = '#38a169' %}
+    {% set ai_header_color = '#68d391' %}
+    {% set ai_estado_label = '🟢 ESTADO: VERDE — SIN AMENAZAS DETECTADAS' %}
+    {% set ai_label_color = '#9ae6b4' %}
+  {% else %}
+    {% set ai_bg = '#1a1f2e' %}
+    {% set ai_border = '#4a5568' %}
+    {% set ai_header_color = '#a0aec0' %}
+    {% set ai_estado_label = '⚪ ESTADO: ' ~ title %}
+    {% set ai_label_color = '#cbd5e0' %}
+  {% endif %}
+
+<div style="background:{{ ai_bg }}; border:2px solid {{ ai_border }}; border-radius:8px; padding:1.2rem 1.4rem; margin-bottom:1.5rem;">
+
+  <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.8rem; margin-bottom:1rem;">
+    <div>
+      <span style="font-size:1.15rem; font-weight:700; color:{{ ai_header_color }}; letter-spacing:0.03em;">
+        {{ ai_estado_label }}
+      </span>
+      <span style="margin-left:1rem; font-size:0.82rem; color:#718096;">
+        Último análisis: {{ latest_ai.timestamp.strftime('%Y-%m-%d %H:%M:%S') if latest_ai.timestamp else '—' }}
+      </span>
+    </div>
+    <form method="post" action="/ai/run" style="margin:0;">
+      <button type="submit"
+        style="background:#2b6cb0; color:#fff; border:none; border-radius:5px; padding:0.45rem 1.1rem; font-size:0.9rem; font-weight:600; cursor:pointer; white-space:nowrap;"
+        onmouseover="this.style.background='#2c5282'" onmouseout="this.style.background='#2b6cb0'">
+        ▶ Analizar ahora
+      </button>
+    </form>
+  </div>
+
+  {% if latest_ai.threat_description %}
+  <p style="color:#e2e8f0; margin-bottom:0.8rem; line-height:1.55;">
+    <span style="color:{{ ai_label_color }}; font-weight:600;">Resumen:</span>
+    {{ latest_ai.threat_description }}
+  </p>
+  {% endif %}
+
+  <div style="display:flex; gap:1.2rem; flex-wrap:wrap; margin-bottom:0.8rem; font-size:0.88rem; color:#a0aec0;">
+    <span><strong style="color:{{ ai_label_color }};">Severidad:</strong>
+      <span class="badge badge-{{ latest_ai.severity }}">{{ latest_ai.severity }}</span>
+    </span>
+    <span><strong style="color:{{ ai_label_color }};">Confianza:</strong> {{ latest_ai.confidence }}%</span>
+    <span><strong style="color:{{ ai_label_color }};">Contenedor:</strong> {{ latest_ai.container_name }}</span>
+    <span><strong style="color:{{ ai_label_color }};">Proyecto:</strong> {{ latest_ai.project }}</span>
+  </div>
+
+  {% if latest_ai.recommendations %}
+  <div style="margin-top:0.6rem; border-top:1px solid {{ ai_border }}; padding-top:0.75rem;">
+    <p style="color:{{ ai_label_color }}; font-weight:600; margin-bottom:0.4rem; font-size:0.9rem;">Incidentes sospechosos / Recomendaciones:</p>
+    <div style="color:#cbd5e0; font-size:0.88rem; line-height:1.6; white-space:pre-wrap;">{{ latest_ai.recommendations }}</div>
+  </div>
+  {% endif %}
+
+</div>
+
+{% else %}
+
+<div style="background:#1a1d26; border:2px solid #4a5568; border-radius:8px; padding:1.1rem 1.4rem; margin-bottom:1.5rem; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.8rem;">
+  <span style="color:#718096; font-size:0.97rem;">⚪ Sin análisis IA todavía — no se ha ejecutado ningún digest.</span>
+  <form method="post" action="/ai/run" style="margin:0;">
+    <button type="submit"
+      style="background:#2b6cb0; color:#fff; border:none; border-radius:5px; padding:0.45rem 1.1rem; font-size:0.9rem; font-weight:600; cursor:pointer; white-space:nowrap;"
+      onmouseover="this.style.background='#2c5282'" onmouseout="this.style.background='#2b6cb0'">
+      ▶ Analizar ahora
+    </button>
+  </form>
+</div>
+
 {% endif %}
 
 <!-- Last 24h severity counters -->

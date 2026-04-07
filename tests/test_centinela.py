@@ -104,11 +104,12 @@ class TestIsSuspiciousProcess(unittest.TestCase):
         self.assertEqual(sev, "medium")
 
     def test_context_suspicious_curl(self):
+        # curl was intentionally removed from CONTEXT_SUSPICIOUS_PROCESSES to
+        # eliminate Coolify health-check false positives. Bare curl is not flagged.
         susp, sev, _ = is_suspicious_process(
             "curl", ALWAYS_SUSPICIOUS_PROCESSES, CONTEXT_SUSPICIOUS_PROCESSES
         )
-        self.assertTrue(susp)
-        self.assertEqual(sev, "medium")
+        self.assertFalse(susp)
 
     def test_not_suspicious_php_fpm(self):
         susp, _, _ = is_suspicious_process(
