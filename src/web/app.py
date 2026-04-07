@@ -587,49 +587,20 @@ def create_web_app() -> FastAPI:
         return templates.TemplateResponse(
             request=request,
             name="purge_incidents.html",
-            context={"error": "", "ok_message": "", "requires_2fa": bool(_totp_secret())},
+            context={"error": "", "ok_message": ""},
         )
 
     @app.post("/incidents/purge", response_class=HTMLResponse)
     async def purge_incidents_submit(
         request: Request,
         password: str = Form(...),
-        totp_code: str = Form(""),
     ):
         _, expected_pass = _auth_credentials()
         if password != expected_pass:
             return templates.TemplateResponse(
                 request=request,
                 name="purge_incidents.html",
-                context={
-                    "error": "Contrasena incorrecta.",
-                    "ok_message": "",
-                    "requires_2fa": bool(_totp_secret()),
-                },
-                status_code=401,
-            )
-
-        if not _totp_secret():
-            return templates.TemplateResponse(
-                request=request,
-                name="purge_incidents.html",
-                context={
-                    "error": "2FA no configurado. Define CENTINELA_WEB_2FA_SECRET.",
-                    "ok_message": "",
-                    "requires_2fa": False,
-                },
-                status_code=400,
-            )
-
-        if not _verify_totp(totp_code):
-            return templates.TemplateResponse(
-                request=request,
-                name="purge_incidents.html",
-                context={
-                    "error": "Codigo 2FA invalido.",
-                    "ok_message": "",
-                    "requires_2fa": True,
-                },
+                context={"error": "Contrasena incorrecta.", "ok_message": ""},
                 status_code=401,
             )
 
@@ -647,22 +618,14 @@ def create_web_app() -> FastAPI:
             return templates.TemplateResponse(
                 request=request,
                 name="purge_incidents.html",
-                context={
-                    "error": "No se pudieron borrar incidencias. Revisa logs.",
-                    "ok_message": "",
-                    "requires_2fa": True,
-                },
+                context={"error": "No se pudieron borrar incidencias. Revisa logs.", "ok_message": ""},
                 status_code=500,
             )
 
         return templates.TemplateResponse(
             request=request,
             name="purge_incidents.html",
-            context={
-                "error": "",
-                "ok_message": f"Incidencias eliminadas: {deleted}",
-                "requires_2fa": True,
-            },
+            context={"error": "", "ok_message": f"Incidencias eliminadas: {deleted}"},
         )
 
     # ------------------------------------------------------------------

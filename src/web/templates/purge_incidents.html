@@ -10,10 +10,6 @@
       Contrasena del panel
       <input type="password" name="password" required>
     </label>
-    <label style="min-width:220px;">
-      Codigo 2FA (6 digitos)
-      <input type="text" name="totp_code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required>
-    </label>
     <button type="submit" class="btn" style="background:#9c2727; color:#fff;">Confirmar borrado total</button>
     <a href="/incidents" class="btn" style="background:#2a2a50; color:#a0b0ff;">Cancelar</a>
   </form>
@@ -22,11 +18,6 @@
   {% endif %}
   {% if ok_message %}
   <p style="margin-top:1rem; color:#8fffaf;">{{ ok_message }}</p>
-  {% endif %}
-  {% if not requires_2fa %}
-  <p style="margin-top:1rem; color:#ffcf8f;">
-    Falta configurar `CENTINELA_WEB_2FA_SECRET` (base32) para habilitar el borrado.
-  </p>
   {% endif %}
 </div>
 {% endblock %}
