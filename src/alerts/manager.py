@@ -27,6 +27,57 @@ from alerts.whatsapp_sender import send_whatsapp_alert
 
 logger = logging.getLogger("centinela.alerts.manager")
 
+
+def _friendly_project_name(container_name: str, labels: Optional[Dict[str, str]] = None) -> str:
+    """
+    Derive a human-readable project name from Docker labels (preferred) or
+    container name parsing (fallback) when no ProjectConfig is matched.
+
+    Label priority (Coolify and Docker Compose):
+      1. coolify.name                         → user-defined name in Coolify UI
+      2. coolify.stack                         → Coolify stack name
+      3. com.docker.compose.project + service  → "project / service"
+      4. Container name parsing                → last readable segment
+    """
+    if labels:
+        # 1. Coolify user-defined service name
+        name = labels.get("coolify.name", "").strip()
+        if name:
+            return name
+        # 2. Coolify stack name
+        stack = labels.get("coolify.stack", "").strip()
+        if stack:
+            return stack
+        # 3. Docker Compose project + service
+        compose_project = labels.get("com.docker.compose.project", "").strip()
+        compose_service = labels.get("com.docker.compose.service", "").strip()
+        if compose_project and compose_service:
+            return f"{compose_project} / {compose_service}"
+        if compose_project:
+            return compose_project
+
+    if not container_name:
+        return "unregistered"
+
+    # Docker Compose pattern: project_service_1
+    if "_" in container_name:
+        parts = container_name.split("_")
+        meaningful = [p for p in parts if p and not p.isdigit()]
+        if meaningful:
+            return " / ".join(meaningful[:2])
+
+    # Coolify / custom: {hash}-{service}
+    if "-" in container_name:
+        parts = container_name.split("-")
+        for segment in reversed(parts):
+            if (segment
+                    and not segment.isdigit()
+                    and len(segment) <= 20
+                    and any(c.isalpha() for c in segment)):
+                return segment
+
+    return container_name[:20] or "unregistered"
+
 # Ordered severity levels for numeric comparison
 _SEVERITY_ORDER: Dict[str, int] = {
     "low":      0,
@@ -77,6 +128,7 @@ class AlertManager:
         rule: str,
         evidence: dict,
         dedup_extra: str = "",
+        labels: Optional[Dict[str, str]] = None,
     ) -> bool:
         """
         Evaluate, deduplicate, persist, and dispatch a security alert.
@@ -96,7 +148,7 @@ class AlertManager:
         -------
         True if a new incident was created and dispatched; False if suppressed.
         """
-        project_name = project.name if project else "unregistered"
+        project_name = project.name if project else _friendly_project_name(container_name, labels)
 
         # 1. Build dedup key
         dedup_key = f"{container_name}:{alert_type}:{rule}:{dedup_extra}"

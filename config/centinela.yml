@@ -85,8 +85,8 @@ monitoring:
 # Keys match the incident_type values used in IncidentRepository.
 alert_cooldown:
   DOCKER_EVENT_EXEC: 120
-  DOCKER_EVENT_RESTART: 300
-  DOCKER_EVENT_STOP: 60
+  DOCKER_EVENT_RESTART: 7200   # 2h – crash loop burst alerta una vez, no repite
+  DOCKER_EVENT_STOP: 7200      # 2h – suprimido ademas por logica crash loop
   PROCESS_SUSPICIOUS: 120
   NETWORK_SPIKE: 300
   NETWORK_NEW_DEST: 3600

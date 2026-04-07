@@ -177,6 +177,11 @@ class DockerEventMonitor:
         # key -> monotonic timestamp of last emitted log
         self._healthcheck_trace_last: Dict[str, float] = {}
 
+        # Crash-loop suppression: container_name → monotonic time until which
+        # individual DOCKER_EVENT_STOP alerts are suppressed.
+        # Set when a restart burst is detected; expires after 2 hours.
+        self._crash_loop_until: Dict[str, float] = {}
+
     # ------------------------------------------------------------------
     # Callback registration (called from main.py after instantiation)
     # ------------------------------------------------------------------
@@ -556,6 +561,7 @@ class DockerEventMonitor:
             container_id=container_id,
             alert_type="DOCKER_EVENT_EXEC",
             severity=severity,
+            labels=attrs,
             rule=f"exec_in_container:{cmd.split()[0] if cmd else 'unknown'}",
             evidence=evidence,
             dedup_extra=self._exec_dedup_token(cmd, exec_id),
@@ -601,6 +607,18 @@ class DockerEventMonitor:
             project.name if project else "unregistered",
         )
 
+        # Suppress individual STOP alerts when a crash loop has already been flagged.
+        # The burst alert (HIGH) is the meaningful signal; individual STOPs are noise.
+        if time.monotonic() < self._crash_loop_until.get(container_name, 0):
+            logger.debug(
+                "STOP suppressed (crash loop active): container=%s exit_code=%d",
+                container_name, exit_code,
+            )
+            # Still fire stop callbacks so filesystem watchers are removed
+            for cb in self._stop_callbacks:
+                asyncio.ensure_future(cb(container_name))
+            return
+
         evidence = {
             "container": container_name,
             "container_id": container_id[:12],
@@ -614,6 +632,7 @@ class DockerEventMonitor:
             container_id=container_id,
             alert_type="DOCKER_EVENT_STOP",
             severity="medium",
+            labels=attrs,
             rule=f"container_exit_code:{exit_code}",
             evidence=evidence,
             dedup_extra=str(exit_code),
@@ -653,6 +672,7 @@ class DockerEventMonitor:
             container_id=container_id,
             alert_type="DOCKER_EVENT_OOM",
             severity="critical",
+            labels=attrs,
             rule="container_oom_killed",
             evidence=evidence,
             dedup_extra="oom",
@@ -693,12 +713,17 @@ class DockerEventMonitor:
                 "Restart BURST: container=%s count=%d in %ds",
                 container_name, len(recent), _RESTART_BURST_WINDOW,
             )
+            # Mark this container as in crash loop for 2 hours to suppress
+            # individual DOCKER_EVENT_STOP noise during the loop.
+            self._crash_loop_until[container_name] = time.monotonic() + 7200
+
             evidence = {
                 "container": container_name,
                 "container_id": container_id[:12],
                 "restart_count": len(recent),
                 "window_seconds": _RESTART_BURST_WINDOW,
                 "image": attrs.get("image", ""),
+                "note": "Crash loop detectado. Alertas STOP individuales suprimidas 2h.",
             }
 
             await self._alert_manager.raise_alert(
@@ -706,8 +731,9 @@ class DockerEventMonitor:
                 container_name=container_name,
                 container_id=container_id,
                 alert_type="DOCKER_EVENT_RESTART",
-                severity="medium",
-                rule=f"container_restart_burst:{len(recent)}",
+                severity="high",
+                labels=attrs,
+                rule=f"container_crash_loop:{len(recent)}",
                 evidence=evidence,
                 dedup_extra="burst",
             )
@@ -770,6 +796,7 @@ class DockerEventMonitor:
                 container_id=container_id,
                 alert_type="DOCKER_EVENT_SUSPICIOUS_START",
                 severity="medium",
+                labels=attrs,
                 rule=f"suspicious_image:{matched_image}",
                 evidence=evidence,
                 dedup_extra=matched_image,
